@@ -382,6 +382,26 @@ export default function Dashboard() {
 
     // Delay geolocation until map is ready (after splash screen clears)
     const geoTimer = setTimeout(() => {
+      // 1. Check if user calibrated their preferred location
+      try {
+        const saved = typeof window !== 'undefined' ? localStorage.getItem('trinetra_custom_location') : null;
+        if (saved) {
+          const loc = JSON.parse(saved);
+          if (loc.lat && loc.lng) {
+            setLiveLocation({
+              lat: loc.lat,
+              lng: loc.lng,
+              accuracy: loc.accuracy || 10,
+              heading: null,
+            });
+            setFlyToLocation({ lat: loc.lat, lng: loc.lng, zoom: 13, ts: Date.now() });
+            setMapView(v => ({ ...v, zoom: 13 }));
+            return;
+          }
+        }
+      } catch { /* ignore parse error */ }
+
+      // 2. Hardware / Wi-Fi Geolocation
       if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
@@ -407,7 +427,7 @@ export default function Dashboard() {
               })
               .catch(() => { /* silent — keep default global view */ });
           },
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
         );
       } else {
         fetch('/api/geo')

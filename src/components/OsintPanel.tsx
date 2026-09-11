@@ -142,10 +142,119 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     });
   }, [cveCache]);
 
-    const handleSelfTrack = useCallback(() => {
-      setLoading(true);
-      setError('');
-      setActiveTab('self_track');
+  const [customCityInput, setCustomCityInput] = useState('');
+  const [customSearching, setCustomSearching] = useState(false);
+  const [customMatches, setCustomMatches] = useState<any[]>([]);
+  const [showCalibrator, setShowCalibrator] = useState(false);
+  const [isCustomSaved, setIsCustomSaved] = useState(false);
+
+  const applyCustomLocation = useCallback((loc: { lat: number; lng: number; name?: string; region?: string; country?: string }) => {
+    const payload = {
+      lat: loc.lat,
+      lng: loc.lng,
+      accuracy: 50,
+      city: loc.name || 'Calibrated Location',
+      region: loc.region || '',
+      country: loc.country || '',
+      isp: 'Calibrated Location',
+      org: 'User Configured',
+      as: 'User Location',
+      query: `${loc.lat.toFixed(4)}°, ${loc.lng.toFixed(4)}°`,
+      type: 'self_track',
+      source: 'User Calibrated Location (Saved)',
+      timestamp: new Date().toLocaleTimeString(),
+    };
+    try {
+      localStorage.setItem('trinetra_custom_location', JSON.stringify({
+        lat: loc.lat,
+        lng: loc.lng,
+        city: loc.name,
+        region: loc.region,
+        country: loc.country,
+      }));
+      setIsCustomSaved(true);
+    } catch { /* ignore */ }
+    setResults(payload);
+    setShowCalibrator(false);
+    setCustomMatches([]);
+    setCustomCityInput('');
+    if (onScanGeolocate) {
+      onScanGeolocate('MY LOCATION (CALIBRATED)', payload);
+    }
+  }, [onScanGeolocate]);
+
+  const clearCustomLocation = useCallback(() => {
+    try {
+      localStorage.removeItem('trinetra_custom_location');
+      setIsCustomSaved(false);
+    } catch { /* ignore */ }
+    setShowCalibrator(false);
+    handleSelfTrack();
+  }, []);
+
+  const searchCustomLocation = async (text: string) => {
+    if (!text.trim()) return;
+    setCustomSearching(true);
+    try {
+      const coordMatch = text.match(/^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/);
+      if (coordMatch) {
+        const lat = parseFloat(coordMatch[1]);
+        const lng = parseFloat(coordMatch[3]);
+        applyCustomLocation({ lat, lng, name: `Manual Fix (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)` });
+        setCustomSearching(false);
+        return;
+      }
+      const res = await fetch(`/api/geosearch?q=${encodeURIComponent(text.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCustomMatches(data.results || []);
+      }
+    } catch {
+      // error handled
+    } finally {
+      setCustomSearching(false);
+    }
+  };
+
+  const handleSelfTrack = useCallback(() => {
+    setLoading(true);
+    setError('');
+    setActiveTab('self_track');
+
+    // 1. Check if user already calibrated their preferred location
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('trinetra_custom_location') : null;
+      if (saved) {
+        const loc = JSON.parse(saved);
+        if (loc.lat && loc.lng) {
+          const trackPayload = {
+            lat: loc.lat,
+            lng: loc.lng,
+            accuracy: 50,
+            city: loc.city || 'Calibrated Location',
+            region: loc.region || '',
+            country: loc.country || '',
+            isp: 'User Calibrated Location',
+            org: 'Manual / Saved',
+            as: 'User Location',
+            query: `${loc.lat.toFixed(4)}°, ${loc.lng.toFixed(4)}°`,
+            type: 'self_track',
+            source: 'User Calibrated Location (Saved)',
+            timestamp: new Date().toLocaleTimeString(),
+          };
+          setLoading(false);
+          setIsCustomSaved(true);
+          setResults(trackPayload);
+          setHistory(prev => [{ tab: 'self_track', query: `Calibrated: ${loc.city || `${loc.lat},${loc.lng}`}`, time: new Date().toLocaleTimeString() }, ...prev.slice(0, 9)]);
+          if (onScanGeolocate) {
+            onScanGeolocate('MY LOCATION (CALIBRATED)', trackPayload);
+          }
+          return;
+        }
+      }
+    } catch { /* ignore */ }
+
+    setIsCustomSaved(false);
 
       const fallbackToIp = (warningNotice?: string) => {
         fetch('/api/geo')
@@ -1285,29 +1394,132 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     // ── SELF TRACK ──
     if (activeTab === 'self_track' || r.type === 'self_track') {
       const isGps = r.source?.includes('GPS');
+      const isCalibrated = isCustomSaved || r.source?.includes('Calibrated');
       return (
         <div className="space-y-3">
           <SectionHeader title="SELF TELEMETRY & LOCATION" icon={LocateFixed} color="#00E676" />
 
-          {r.warning && (
-            <div className="p-2.5 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-[10px] font-mono text-yellow-400 flex items-start gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-              <div>
-                <div>{r.warning}</div>
-                <div className="text-[9px] text-yellow-400/70 mt-1">Tip: Allow location access in your browser address bar for pin-point GPS accuracy.</div>
+          {/* Calibrated vs ISP Warning */}
+          {isCalibrated ? (
+            <div className="p-2.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-[10px] font-mono text-emerald-300 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div>
+                  <span className="font-bold">Real Location Locked</span>: {r.city || 'Custom Coordinates'}
+                </div>
+              </div>
+              <button
+                onClick={clearCustomLocation}
+                className="text-[9px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/30 transition-colors"
+                title="Reset to automatic detection"
+              >
+                Reset
+              </button>
+            </div>
+          ) : !isGps && (
+            <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-[10px] font-mono text-amber-300 space-y-1.5">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-bold">ISP Gateway Detected: {r.city} ({r.isp})</div>
+                  <div className="text-[9px] text-amber-200/70">
+                    Your ISP ({r.isp || 'Reliance Jio'}) routes traffic through its central gateway in {r.city || 'Mumbai'}. If you are located in a different city, calibrate your exact location below.
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          <div className="flex items-center gap-2 mb-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold border bg-[#00E676]/15 text-[#00E676] border-[#00E676]/40 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#00E676] animate-pulse" />
-              {isGps ? 'GPS SENSOR LOCKED' : 'IP-BASED ESTIMATE'}
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1.5 ${
+              isCalibrated
+                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40'
+                : isGps
+                ? 'bg-[#00E676]/15 text-[#00E676] border-[#00E676]/40'
+                : 'bg-amber-500/15 text-amber-400 border-amber-500/40'
+            }`}>
+              <span className={`w-2 h-2 rounded-full animate-pulse ${
+                isCalibrated ? 'bg-emerald-400' : isGps ? 'bg-[#00E676]' : 'bg-amber-400'
+              }`} />
+              {isCalibrated ? 'LOCATION CALIBRATED' : isGps ? 'GPS SENSOR LOCKED' : 'IP-BASED ESTIMATE'}
             </span>
             <span className="px-2 py-0.5 rounded text-[10px] font-mono text-[var(--text-muted)] border border-white/10 bg-white/5">
               ±{r.accuracy}m ACCURACY
             </span>
+            <button
+              onClick={() => setShowCalibrator(v => !v)}
+              className="ml-auto text-[9px] font-mono font-bold px-2 py-0.5 rounded border border-[#00E5FF]/40 bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 text-[#00E5FF] transition-colors"
+            >
+              {showCalibrator ? 'HIDE CALIBRATOR' : '📍 CALIBRATE REAL CITY'}
+            </button>
           </div>
+
+          {/* Location Calibrator Dropdown / Form */}
+          {showCalibrator && (
+            <div className="p-3 rounded-lg border border-[#00E5FF]/30 bg-black/60 backdrop-blur-md space-y-2.5">
+              <div className="text-[10px] font-mono text-[#00E5FF] font-bold tracking-wider">
+                SET YOUR EXACT LOCATION
+              </div>
+              <p className="text-[9px] font-mono text-white/60">
+                Type your city name or enter &quot;lat, lng&quot; coordinates to permanently fix your position:
+              </p>
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  placeholder="e.g. Bhubaneswar, Delhi, Bangalore or 20.29, 85.82"
+                  value={customCityInput}
+                  onChange={e => setCustomCityInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') searchCustomLocation(customCityInput); }}
+                  className="flex-1 px-2.5 py-1.5 rounded bg-white/5 border border-white/15 text-[11px] font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-[#00E5FF]"
+                />
+                <button
+                  onClick={() => searchCustomLocation(customCityInput)}
+                  disabled={customSearching}
+                  className="px-3 py-1.5 rounded bg-[#00E5FF]/20 hover:bg-[#00E5FF]/30 border border-[#00E5FF]/40 text-[#00E5FF] text-[10px] font-mono font-bold transition-all disabled:opacity-50"
+                >
+                  {customSearching ? 'FINDING…' : 'SEARCH'}
+                </button>
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <span className="text-[8px] font-mono text-white/40 uppercase">Quick:</span>
+                {[
+                  { name: 'Bhubaneswar', lat: 20.2961, lng: 85.8245 },
+                  { name: 'Delhi NCR', lat: 28.6139, lng: 77.2090 },
+                  { name: 'Bengaluru', lat: 12.9716, lng: 77.5946 },
+                  { name: 'Mumbai', lat: 19.0760, lng: 72.8777 },
+                  { name: 'Kolkata', lat: 22.5726, lng: 88.3639 },
+                  { name: 'Pune', lat: 18.5204, lng: 73.8567 },
+                  { name: 'Hyderabad', lat: 17.3850, lng: 78.4867 },
+                ].map(city => (
+                  <button
+                    key={city.name}
+                    onClick={() => applyCustomLocation(city)}
+                    className="text-[9px] font-mono px-2 py-0.5 rounded border border-white/10 bg-white/5 hover:bg-[#00E5FF]/20 hover:border-[#00E5FF]/40 text-white/70 hover:text-white transition-all"
+                  >
+                    {city.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Results Matches */}
+              {customMatches.length > 0 && (
+                <div className="max-h-36 overflow-y-auto space-y-1 pt-1.5 border-t border-white/10">
+                  {customMatches.map((m, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => applyCustomLocation({ lat: m.lat, lng: m.lng, name: m.name, region: m.context })}
+                      className="w-full text-left p-1.5 rounded bg-white/5 hover:bg-[#00E5FF]/15 border border-white/5 hover:border-[#00E5FF]/30 text-[10px] font-mono transition-colors block"
+                    >
+                      <div className="font-bold text-white/90">{m.name}</div>
+                      <div className="text-[8px] text-white/50 truncate">{m.context}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <ResultRow label="Coordinates" value={`${r.lat.toFixed(6)}°, ${r.lng.toFixed(6)}°`} color="#00E676" />
           <ResultRow label="Accuracy" value={`±${r.accuracy} meters`} />

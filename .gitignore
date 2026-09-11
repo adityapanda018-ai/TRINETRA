@@ -61,3 +61,7 @@ scanner_backend_backup.js
 __pycache__/
 *.pyc
 
+# Scratch & local runs
+scratch/
+runs/
+

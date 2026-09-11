@@ -100,7 +100,7 @@ TRINETRA is a production-grade OSINT platform that provides situational awarenes
 
 ### Telegram OSINT Layer
 - **Public-channel feed** scraped from the unauthenticated `t.me/s/<channel>` web preview — no Bot API token, no MTProto
-- Default curated set of 5 channels (EN + RU/UA war reporting), overridable via `TRINETRA_TELEGRAM_CHANNELS` (or `OSIRIS_TELEGRAM_CHANNELS`)
+- Default curated set of 5 channels (EN + RU/UA war reporting), overridable via `TRINETRA_TELEGRAM_CHANNELS`
 - Posts are geoparsed against a multilingual place dictionary (EN + Cyrillic + Arabic) and plotted on the map
 - Click any cyan dot to read the post and jump to the original on Telegram
 
@@ -162,7 +162,7 @@ docker pull ghcr.io/simplifaisoul/trinetra:latest
 docker run -d -p 3000:3000 --env-file .env ghcr.io/simplifaisoul/trinetra:latest
 ```
 
-**Custom port** — the container always listens on `3000`; set `TRINETRA_PORT` (or `OSIRIS_PORT`) in
+**Custom port** — the container always listens on `3000`; set `TRINETRA_PORT` in
 `.env` to change the published host port (e.g. `TRINETRA_PORT=3005`) without
 editing the compose file.
 
@@ -177,7 +177,7 @@ what you need:
 TRINETRA_PORT=3000
 
 # RECON scanner backend (the only vars the current code reads).
-# SCANNER_KEY must match the backend's TRINETRA_KEY (or legacy OSIRIS_KEY) — generate with: openssl rand -hex 32
+# SCANNER_KEY must match the backend's TRINETRA_KEY — generate with: openssl rand -hex 32
 SCANNER_URL=
 SCANNER_KEY=
 

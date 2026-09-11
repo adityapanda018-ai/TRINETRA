@@ -34,7 +34,7 @@ What the compose file does:
 - **`env_file: .env` (`required: false`)** — if a `.env` file exists its
   values are injected into the container; if it's missing, TRINETRA still starts
   with the keyless feeds.
-- **`ports: ${TRINETRA_PORT:-${OSIRIS_PORT:-3000}}:3000`** — the web UI. The container always
+- **`ports: ${TRINETRA_PORT:-3000}:3000`** — the web UI. The container always
   listens on 3000; the published **host** port is `TRINETRA_PORT` (default
   `3000`). Set `TRINETRA_PORT` in `.env` to remap it, e.g. `TRINETRA_PORT=3005`
   when 3000 is already in use — no need to edit the compose file.
@@ -116,7 +116,7 @@ Copy `.env.example` to `.env` and fill in only what you need.
 | Variable | Purpose | Required for |
 |----------|---------|--------------|
 | `SCANNER_URL` | RECON scanner backend base URL (e.g. `http://scanner:7700`) | RECON toolkit (quick/ssl/headers/rdns/subdomains/tech/whois/geoloc/vuln) |
-| `SCANNER_KEY` | Shared secret; **must equal the backend's `TRINETRA_KEY` (or legacy `OSIRIS_KEY`)** | RECON toolkit |
+| `SCANNER_KEY` | Shared secret; **must equal the backend's `TRINETRA_KEY`** | RECON toolkit |
 
 Without `SCANNER_URL`/`SCANNER_KEY` the RECON endpoints return `503` and the
 rest of TRINETRA works normally. Generate a key with `openssl rand -hex 32`.
@@ -141,8 +141,8 @@ them only if you extend the relevant route or hit rate limits.
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `TRINETRA_TELEGRAM_CHANNELS` | Comma-separated list of public Telegram channel usernames (no `@`) to scrape for the **Telegram OSINT** map layer. Overrides the curated default set (legacy `OSIRIS_TELEGRAM_CHANNELS` also supported). | `osintdefender,insiderpaper,aljazeeraenglish,nexta_live,war_monitor` |
-| `TRINETRA_PORT` | Host port the compose file publishes (container itself always listens on 3000; legacy `OSIRIS_PORT` also supported). | `3000` |
+| `TRINETRA_TELEGRAM_CHANNELS` | Comma-separated list of public Telegram channel usernames (no `@`) to scrape for the **Telegram OSINT** map layer. Overrides the curated default set. | `osintdefender,insiderpaper,aljazeeraenglish,nexta_live,war_monitor` |
+| `TRINETRA_PORT` | Host port the compose file publishes (container itself always listens on 3000). | `3000` |
 
 ### Keyless sources (no configuration needed)
 

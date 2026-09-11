@@ -8,9 +8,9 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: trinetra
-    # Host port is configurable via TRINETRA_PORT / OSIRIS_PORT in .env (defaults to 3000).
+    # Host port is configurable via TRINETRA_PORT in .env (defaults to 3000).
     ports:
-      - "${TRINETRA_PORT:-${OSIRIS_PORT:-3000}}:3000"
+      - "${TRINETRA_PORT:-3000}:3000"
     # Optional API keys / scanner backend — copy .env.template to .env and
     # fill in what you need. Missing file is ignored (keyless feeds still work).
     env_file:
@@ -96,7 +96,7 @@ x-casaos:
         en_us: "(Optional) RECON scanner backend URL, e.g. http://scanner:7700"
     - container: SCANNER_KEY
       description:
-        en_us: "(Optional) RECON scanner shared secret (must match backend TRINETRA_KEY / OSIRIS_KEY)."
+        en_us: "(Optional) RECON scanner shared secret (must match backend TRINETRA_KEY)."
     - container: FIRMS_API_KEY
       description:
         en_us: "(Optional) NASA FIRMS API key for active-fire data."

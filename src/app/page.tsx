@@ -1192,6 +1192,10 @@ export default function Dashboard() {
           data={data} 
           activeLayers={activeLayers} 
           projection={mapProjection} 
+          onToggleProjection={() => {
+            setMapProjection(prev => prev === 'globe' ? 'mercator' : 'globe');
+            tacticalAudio.playUiClick();
+          }}
           mapStyle={mapStyle === 'satellite' ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' : 'dark'} 
           onEntityClick={handleEntityClick} 
           onMouseCoords={handleMouseCoords} 
@@ -2221,7 +2225,16 @@ export default function Dashboard() {
       <KeyboardShortcuts />
 
       {/* ── GLOBAL STATUS TICKER (bottom) ── */}
-      <GlobalStatusBar />
+      <GlobalStatusBar
+        projection={mapProjection}
+        onToggleProjection={() => {
+          setMapProjection(prev => prev === 'globe' ? 'mercator' : 'globe');
+          tacticalAudio.playUiClick();
+        }}
+        data={data}
+        onFlyTo={(loc) => setFlyToLocation({ ...loc, ts: Date.now() })}
+        mouseCoords={mouseCoordsRef.current}
+      />
 
       {/* Shortcut hint — more visible */}
       <div className="desktop-only absolute bottom-[26px] right-5 z-[200] pointer-events-none text-[9px] font-mono text-[var(--text-muted)] opacity-50 tracking-widest" title="Press ? to see all keyboard shortcuts">

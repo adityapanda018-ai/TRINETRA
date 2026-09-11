@@ -1,12 +1,34 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { Globe, Map as MapIcon, Crosshair, ShieldAlert } from 'lucide-react';
 import { tacticalAudio } from '@/lib/tactical-audio';
 
-interface CryptoPrice { symbol: string; price: number; change24h?: number; }
-interface Earthquake { id: string; magnitude: number; place: string; time: number; depth: number; }
+interface CryptoPrice {
+  symbol: string;
+  price: number;
+  change24h?: number;
+}
+
+interface Earthquake {
+  id: string;
+  magnitude: number;
+  place: string;
+  time: number;
+  depth: number;
+  lat: number;
+  lng: number;
+}
+
+interface GlobalStatusBarProps {
+  projection?: 'globe' | 'mercator';
+  onToggleProjection?: () => void;
+  data?: any;
+  onFlyTo?: (loc: { lat: number; lng: number; zoom?: number }) => void;
+  mouseCoords?: { lat: number; lng: number } | null;
+}
 
 /* ─── Inline SVG Icons ─── */
 const DiscordIcon = () => (
@@ -72,11 +94,51 @@ const formatChange = (change: number | undefined) => {
   );
 };
 
-export default function GlobalStatusBar() {
+export default function GlobalStatusBar({
+  projection = 'globe',
+  onToggleProjection,
+  data,
+  onFlyTo,
+  mouseCoords,
+}: GlobalStatusBarProps) {
   const [crypto, setCrypto] = useState<CryptoPrice[]>([]);
   const [quakes, setQuakes] = useState<Earthquake[]>([]);
   const [hoveredQuake, setHoveredQuake] = useState<Earthquake | null>(null);
   const [audioMuted, setAudioMuted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Real-time ticking military DTG clock
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const dtgString = useMemo(() => {
+    const day = String(currentTime.getUTCDate()).padStart(2, '0');
+    const hour = String(currentTime.getUTCHours()).padStart(2, '0');
+    const min = String(currentTime.getUTCMinutes()).padStart(2, '0');
+    const sec = String(currentTime.getUTCSeconds()).padStart(2, '0');
+    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const month = months[currentTime.getUTCMonth()];
+    const year = String(currentTime.getUTCFullYear()).slice(2);
+    return `${day}${hour}${min}Z ${month} ${year} [${hour}:${min}:${sec}Z]`;
+  }, [currentTime]);
+
+  // Telemetry counts from active data feeds
+  const telemetry = useMemo(() => {
+    const flights =
+      (data?.commercial_flights?.length || 0) +
+      (data?.military_flights?.length || 0) +
+      (data?.private_jets?.length || 0) +
+      (data?.private_flights?.length || 0);
+    const ships = (data?.ships?.length || data?.maritime_vessels?.length || 0);
+    const sats = data?.satellites?.length || 0;
+    const cyber = data?.cyber_attacks?.length || data?.malware_threats?.length || 0;
+    const fires = data?.fires?.length || 0;
+    const quakesCount = quakes.length || data?.earthquakes?.length || 0;
+
+    return { flights, ships, sats, cyber, fires, quakes: quakesCount };
+  }, [data, quakes]);
 
   useEffect(() => {
     setAudioMuted(tacticalAudio.isMuted());
@@ -93,19 +155,19 @@ export default function GlobalStatusBar() {
         const [cryptoRes, quakeRes] = await Promise.allSettled([
           fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true')
             .then(res => res.ok ? res.json() : Promise.reject('CoinGecko error'))
-            .then(data => {
+            .then(d => {
               const prices: CryptoPrice[] = [];
-              if (data.bitcoin?.usd) prices.push({ symbol: 'BTC', price: data.bitcoin.usd, change24h: data.bitcoin.usd_24h_change });
-              if (data.ethereum?.usd) prices.push({ symbol: 'ETH', price: data.ethereum.usd, change24h: data.ethereum.usd_24h_change });
-              if (data.solana?.usd) prices.push({ symbol: 'SOL', price: data.solana.usd, change24h: data.solana.usd_24h_change });
+              if (d.bitcoin?.usd) prices.push({ symbol: 'BTC', price: d.bitcoin.usd, change24h: d.bitcoin.usd_24h_change });
+              if (d.ethereum?.usd) prices.push({ symbol: 'ETH', price: d.ethereum.usd, change24h: d.ethereum.usd_24h_change });
+              if (d.solana?.usd) prices.push({ symbol: 'SOL', price: d.solana.usd, change24h: d.solana.usd_24h_change });
               return { ok: true, json: async () => prices };
             }),
           fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson')
             .then(res => res.ok ? res.json() : Promise.reject('USGS error'))
-            .then(data => ({
+            .then(d => ({
               ok: true,
               json: async () => ({
-                earthquakes: (data.features || []).map((f: any) => ({
+                earthquakes: (d.features || []).map((f: any) => ({
                   id: f.id,
                   lat: f.geometry?.coordinates?.[1] || 0,
                   lng: f.geometry?.coordinates?.[0] || 0,
@@ -113,11 +175,6 @@ export default function GlobalStatusBar() {
                   magnitude: f.properties?.mag,
                   place: f.properties?.place,
                   time: f.properties?.time,
-                  url: f.properties?.url,
-                  tsunami: f.properties?.tsunami,
-                  type: f.properties?.type,
-                  felt: f.properties?.felt,
-                  alert: f.properties?.alert,
                 }))
               })
             })),
@@ -131,64 +188,113 @@ export default function GlobalStatusBar() {
           const majorQuakes = (quakeData.earthquakes || [])
             .filter((q: Earthquake) => q.magnitude >= 4.0)
             .sort((a: Earthquake, b: Earthquake) => b.time - a.time)
-            .slice(0, 5);
+            .slice(0, 8);
           setQuakes(majorQuakes);
         }
-      } catch (e) { console.warn('[TRINETRA] Suppressed error:', e instanceof Error ? e.message : e); }
+      } catch (e) {
+        console.warn('[TRINETRA] Suppressed error:', e instanceof Error ? e.message : e);
+      }
     };
     fetchData();
     const iv = setInterval(fetchData, 60000);
     return () => clearInterval(iv);
   }, []);
 
-  // Keep the bar mounted even with no feed data — the left-hand community and
-  // docs links must stay reachable when CoinGecko/USGS are rate-limited or down.
   const hasTicker = crypto.length > 0 || quakes.length > 0;
-
-  const solPrice = crypto.find(c => c.symbol === 'SOL');
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 3, duration: 0.6 }}
+      transition={{ delay: 1, duration: 0.6 }}
       className="hidden md:block absolute bottom-0 left-0 right-0 z-[210] pointer-events-none"
     >
-      <div className="h-[28px] overflow-hidden bg-[#0a0a0f]/95 border-t border-white/[0.06] flex items-center text-[10px] font-mono tracking-wider backdrop-blur-xl relative">
-        {/* Animated scan line */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--cyan-primary)]/30 to-transparent" style={{ animation: 'hud-scanline 4s linear infinite' }} />
-        
-        {/* ── LEFT: Social & Community Links ── */}
-        <div className="flex-shrink-0 h-full flex items-center pointer-events-auto">
-          {/* Discord — highlighted */}
-          <a href="https://discord.gg/EPaFD5FFKf" target="_blank" rel="noopener noreferrer"
-            className="h-full px-3 flex items-center gap-1.5 bg-[#5865F2]/10 hover:bg-[#5865F2]/25 border-r border-white/[0.04] transition-all duration-200 group"
-          >
-            <DiscordIcon />
-          </a>
-          {/* X / Twitter */}
-          <a href="https://x.com/soulsimplifai" target="_blank" rel="noopener noreferrer"
-            className="h-full px-2.5 flex items-center gap-1.5 text-white/40 hover:text-white hover:bg-white/[0.04] border-r border-white/[0.04] transition-all duration-200"
-          >
-            <XIcon />
-          </a>
-          {/* Documentation & API reference */}
-          <Link href="/docs" prefetch title="Documentation & API Reference" aria-label="Documentation & API Reference"
-            className="h-full px-3 flex items-center gap-1.5 bg-[var(--gold-primary)]/10 text-[var(--gold-primary)]/80 hover:text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/25 border-r border-white/[0.04] transition-all duration-200"
-          >
-            <DocsIcon />
-            <span className="text-[9px] font-bold tracking-[0.15em] uppercase">Docs</span>
-          </Link>
+      <div className="h-[30px] overflow-hidden bg-[#070913]/95 border-t border-white/[0.08] flex items-center text-[10px] font-mono tracking-wider backdrop-blur-xl relative">
+        {/* Animated radar scan line */}
+        <div
+          className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#00E5FF]/40 to-transparent"
+          style={{ animation: 'hud-scanline 4s linear infinite' }}
+        />
+
+        {/* ── SECTION 1: 3D Globe Mode & Military DTG ── */}
+        <div className="flex-shrink-0 h-full flex items-center pointer-events-auto border-r border-white/[0.06]">
+          {/* 3D GLOBE / 2D PLAN MODE TOGGLE */}
+          {onToggleProjection && (
+            <button
+              onClick={onToggleProjection}
+              title={projection === 'globe' ? "Active: 3D Globe View (Click for 2D Plan)" : "Active: 2D Plan View (Click for 3D Globe)"}
+              className={`h-full px-3 flex items-center gap-1.5 transition-all border-r border-white/[0.06] font-bold text-[9px] cursor-pointer ${
+                projection === 'globe'
+                  ? 'bg-[#00E5FF]/15 text-[#00E5FF] hover:bg-[#00E5FF]/25 border-r-[#00E5FF]/30'
+                  : 'bg-[#00E676]/10 text-[#00E676] hover:bg-[#00E676]/20'
+              }`}
+            >
+              {projection === 'globe' ? (
+                <>
+                  <Globe className="w-3.5 h-3.5 text-[#00E5FF] animate-spin" style={{ animationDuration: '24s' }} />
+                  <span className="tracking-[0.14em]">3D GLOBE</span>
+                </>
+              ) : (
+                <>
+                  <MapIcon className="w-3.5 h-3.5 text-[#00E676]" />
+                  <span className="tracking-[0.14em]">2D PLAN</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Tactical Time & Military DTG */}
+          <div className="h-full px-2.5 flex items-center gap-1.5 bg-white/[0.02] text-white/70 border-r border-white/[0.06]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00E676] animate-pulse" />
+            <span className="text-[9px] font-bold tracking-[0.12em] text-[#00E676]">{dtgString}</span>
+          </div>
+
+          {/* Live Telemetry Summary Chips */}
+          <div className="hidden lg:flex items-center h-full px-2 gap-2 text-[9px] text-white/60">
+            {telemetry.flights > 0 && (
+              <span className="flex items-center gap-0.5" title="Airspace Tracked Aircraft">
+                <span className="text-[#00E5FF]">✈</span>
+                <span className="font-bold text-white/80">{telemetry.flights > 999 ? `${(telemetry.flights/1000).toFixed(1)}k` : telemetry.flights}</span>
+              </span>
+            )}
+            {telemetry.ships > 0 && (
+              <span className="flex items-center gap-0.5" title="Live Maritime Vessels">
+                <span className="text-[#00BCD4]">⚓</span>
+                <span className="font-bold text-white/80">{telemetry.ships}</span>
+              </span>
+            )}
+            {telemetry.sats > 0 && (
+              <span className="flex items-center gap-0.5" title="Tracked Space Satellites">
+                <span className="text-[#B388FF]">🛰</span>
+                <span className="font-bold text-white/80">{telemetry.sats > 999 ? `${(telemetry.sats/1000).toFixed(1)}k` : telemetry.sats}</span>
+              </span>
+            )}
+            {telemetry.cyber > 0 && (
+              <span className="flex items-center gap-0.5" title="Active Cyber Threats">
+                <span className="text-[#FF5252]">⚡</span>
+                <span className="font-bold text-white/80">{telemetry.cyber}</span>
+              </span>
+            )}
+            {telemetry.quakes > 0 && (
+              <span className="flex items-center gap-0.5" title="Recent Earthquakes">
+                <span className="text-[#FF9100]">🌐</span>
+                <span className="font-bold text-white/80">{telemetry.quakes}</span>
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* ── CENTER: Scrolling ticker ── */}
-        <div className="flex-1 overflow-hidden relative" style={{ maskImage: 'linear-gradient(to right, transparent, black 3%, black 97%, transparent)' }}>
+        {/* ── SECTION 2: Scrolling Live Intel Ticker (Clickable Events) ── */}
+        <div
+          className="flex-1 overflow-hidden relative"
+          style={{ maskImage: 'linear-gradient(to right, transparent, black 2%, black 98%, transparent)' }}
+        >
           <div className={`flex items-center animate-ticker whitespace-nowrap ${hasTicker ? '' : 'hidden'}`}>
             {[...Array(4)].map((_, repeatIdx) => (
               <span key={repeatIdx} className="inline-flex items-center">
-                {/* Crypto prices */}
+                {/* Crypto Indicators */}
                 {crypto.map(c => (
-                  <span key={`${c.symbol}-${repeatIdx}`} className="inline-flex items-center gap-1 mx-3">
+                  <span key={`${c.symbol}-${repeatIdx}`} className="inline-flex items-center gap-1 mx-2.5">
                     {c.symbol === 'BTC' && <BtcIcon />}
                     {c.symbol === 'ETH' && <EthIcon />}
                     {c.symbol === 'SOL' && <SolanaIcon />}
@@ -196,29 +302,49 @@ export default function GlobalStatusBar() {
                     {formatChange(c.change24h)}
                   </span>
                 ))}
-                {/* Separator */}
+
                 <span className="text-white/10 mx-2">│</span>
-                {/* Earthquakes */}
+
+                {/* Earthquakes (Interactive Fly-To on Click) */}
                 {quakes.map(quake => (
-                  <span 
+                  <button
                     key={`${quake.id}-${repeatIdx}`}
-                    className="inline-flex items-center gap-1 mx-2 cursor-help pointer-events-auto"
+                    onClick={() => {
+                      if (quake.lat && quake.lng && onFlyTo) {
+                        onFlyTo({ lat: quake.lat, lng: quake.lng, zoom: 6 });
+                        tacticalAudio.playSonarPing();
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 mx-2 px-1.5 py-0.5 rounded hover:bg-white/10 cursor-pointer pointer-events-auto transition-colors"
+                    title={`Click to center map on M${quake.magnitude.toFixed(1)} ${quake.place}`}
                     onMouseEnter={() => setHoveredQuake(quake)}
                     onMouseLeave={() => setHoveredQuake(null)}
                   >
                     <span className="text-[#FF5722] text-[9px]">🔴</span>
                     <span className="text-[#FF5722] font-bold">M{quake.magnitude.toFixed(1)}</span>
-                    <span className="text-white/30 truncate max-w-[140px]">{quake.place}</span>
-                  </span>
+                    <span className="text-white/40 truncate max-w-[130px]">{quake.place}</span>
+                    <span className="text-[8px] text-[#00E5FF]/60 ml-0.5">[LOCATE]</span>
+                  </button>
                 ))}
+
                 <span className="text-white/10 mx-2">│</span>
               </span>
             ))}
           </div>
         </div>
 
-        {/* ── RIGHT: Live SOL Price + Links ── */}
-        <div className="flex-shrink-0 h-full flex items-center pointer-events-auto border-l border-white/[0.04]">
+        {/* ── SECTION 3: Live Coordinates, Audio FX, Status, Links ── */}
+        <div className="flex-shrink-0 h-full flex items-center pointer-events-auto border-l border-white/[0.06]">
+          {/* Real-time Crosshair Coordinates */}
+          {mouseCoords && (
+            <div className="hidden xl:flex items-center gap-1 px-2.5 h-full text-[9px] text-[#00E5FF] bg-[#00E5FF]/5 border-r border-white/[0.06]">
+              <Crosshair className="w-3 h-3 text-[#00E5FF]" />
+              <span className="font-mono font-bold">
+                {Math.abs(mouseCoords.lat).toFixed(3)}°{mouseCoords.lat >= 0 ? 'N' : 'S'}, {Math.abs(mouseCoords.lng).toFixed(3)}°{mouseCoords.lng >= 0 ? 'E' : 'W'}
+              </span>
+            </div>
+          )}
+
           {/* Tactical Audio FX Mute / Unmute */}
           <button
             onClick={() => {
@@ -226,7 +352,7 @@ export default function GlobalStatusBar() {
               if (!next) tacticalAudio.playUiClick();
             }}
             title={audioMuted ? "Tactical Audio: MUTED (Click to Enable)" : "Tactical Audio: ACTIVE (Click to Mute)"}
-            className={`h-full px-2.5 flex items-center gap-1.5 transition-colors border-r border-white/[0.04] text-[9px] font-mono cursor-pointer ${
+            className={`h-full px-2.5 flex items-center gap-1.5 transition-colors border-r border-white/[0.06] text-[9px] font-mono cursor-pointer ${
               audioMuted ? 'text-white/30 hover:text-white/60' : 'text-[#00E5FF] bg-[#00E5FF]/5 hover:bg-[#00E5FF]/10'
             }`}
           >
@@ -241,29 +367,76 @@ export default function GlobalStatusBar() {
             )}
           </button>
 
-          {/* Status indicator */}
-          <div className="h-full px-3 flex items-center gap-1.5">
+          {/* DEFCON Status */}
+          <div className="h-full px-2.5 hidden sm:flex items-center gap-1 border-r border-white/[0.06] text-[9px] text-amber-400 font-bold bg-amber-400/5">
+            <ShieldAlert className="w-3 h-3 text-amber-400" />
+            <span className="tracking-wider">DEFCON 3</span>
+          </div>
+
+          {/* Documentation Link */}
+          <Link
+            href="/docs"
+            prefetch
+            title="Documentation & API Reference"
+            className="h-full px-2.5 flex items-center gap-1 text-[var(--gold-primary)]/80 hover:text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/15 border-r border-white/[0.06] transition-all"
+          >
+            <DocsIcon />
+            <span className="text-[9px] font-bold tracking-[0.12em] uppercase">Docs</span>
+          </Link>
+
+          {/* Socials */}
+          <a
+            href="https://discord.gg/EPaFD5FFKf"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Join TRINETRA Discord"
+            className="h-full px-2 flex items-center text-white/40 hover:text-[#5865F2] hover:bg-white/[0.04] border-r border-white/[0.06] transition-all"
+          >
+            <DiscordIcon />
+          </a>
+          <a
+            href="https://x.com/soulsimplifai"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="TRINETRA on X"
+            className="h-full px-2 flex items-center text-white/40 hover:text-white hover:bg-white/[0.04] border-r border-white/[0.06] transition-all"
+          >
+            <XIcon />
+          </a>
+
+          {/* Status Online Beacon */}
+          <div className="h-full px-2.5 flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-[#00E676] animate-pulse" />
-            <span className="text-[#00E676]/70 text-[9px] tracking-[0.2em]">ONLINE</span>
+            <span className="text-[#00E676]/80 text-[8px] font-bold tracking-[0.2em]">ONLINE</span>
           </div>
         </div>
       </div>
 
-      {/* Earthquake hover tooltip */}
+      {/* Earthquake Hover Detailed Tooltip */}
       {hoveredQuake && (
-        <div className="absolute bottom-[34px] left-1/2 -translate-x-1/2 z-[300] pointer-events-none">
-          <div className="bg-black/90 backdrop-blur-xl border border-white/[0.08] rounded-lg px-4 py-3 text-[11px] font-mono whitespace-nowrap shadow-2xl">
+        <div className="absolute bottom-[36px] left-1/2 -translate-x-1/2 z-[300] pointer-events-none">
+          <div className="bg-black/95 backdrop-blur-2xl border border-white/[0.12] rounded-lg px-4 py-3 text-[11px] font-mono whitespace-nowrap shadow-[0_12px_40px_rgba(0,0,0,0.8)]">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-[11px]">🔴</span>
+              <span className="text-[12px]">🔴</span>
               <span className="font-bold text-[#FF5722]">Magnitude {hoveredQuake.magnitude.toFixed(1)}</span>
-              <span className="text-white/30 text-[9px] bg-white/5 px-1.5 py-0.5 rounded">USGS</span>
+              <span className="text-white/40 text-[9px] bg-white/10 px-1.5 py-0.5 rounded font-bold">USGS LIVE</span>
             </div>
-            <div className="text-[10px] text-white font-bold mb-2">
+            <div className="text-[11px] text-white font-bold mb-2">
               {hoveredQuake.place}
             </div>
             <div className="flex flex-col gap-1 text-[10px]">
-              <div className="text-white/50"><span className="text-white/30">Depth:</span> {hoveredQuake.depth} km</div>
-              <div className="text-white/50 mt-1"><span className="text-white/30">Time:</span> {new Date(hoveredQuake.time).toLocaleString()}</div>
+              <div className="text-white/60">
+                <span className="text-white/30">Coordinates:</span> {hoveredQuake.lat.toFixed(3)}°, {hoveredQuake.lng.toFixed(3)}°
+              </div>
+              <div className="text-white/60">
+                <span className="text-white/30">Depth:</span> {hoveredQuake.depth} km
+              </div>
+              <div className="text-white/60">
+                <span className="text-white/30">Recorded:</span> {new Date(hoveredQuake.time).toUTCString()}
+              </div>
+            </div>
+            <div className="mt-2 text-[9px] text-[#00E5FF] font-bold tracking-wider">
+              ✦ CLICK TO TARGET EPICENTER ON MAP
             </div>
           </div>
         </div>

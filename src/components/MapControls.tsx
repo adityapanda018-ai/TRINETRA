@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Minus, Plus, Mountain } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Minus, Plus, Mountain, Globe } from 'lucide-react';
 import type { Map as MlMap } from 'maplibre-gl';
 
 /**
@@ -58,9 +58,18 @@ interface MapControlsProps {
   onInteract?: () => void;
   is3dTerrain?: boolean;
   onToggle3dTerrain?: () => void;
+  projection?: 'globe' | 'mercator';
+  onToggleProjection?: () => void;
 }
 
-export default function MapControls({ mapRef, onInteract, is3dTerrain, onToggle3dTerrain }: MapControlsProps) {
+export default function MapControls({
+  mapRef,
+  onInteract,
+  is3dTerrain,
+  onToggle3dTerrain,
+  projection = 'globe',
+  onToggleProjection,
+}: MapControlsProps) {
   /** The pending hold timer and its repeat, cleared on release and on unmount. */
   const holdRef = useRef<{ delay: number; repeat: number } | null>(null);
 
@@ -154,6 +163,19 @@ export default function MapControls({ mapRef, onInteract, is3dTerrain, onToggle3
               }`}
             >
               <Mountain className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {onToggleProjection && (
+            <button
+              onClick={onToggleProjection}
+              title={projection === 'globe' ? "Switch to 2D Plan View (Mercator)" : "Switch to 3D Globe Projection"}
+              className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all cursor-pointer text-[10px] font-mono font-bold ${
+                projection === 'globe'
+                  ? 'bg-[#00E5FF]/20 border-[#00E5FF]/50 text-[#00E5FF] shadow-[0_0_8px_rgba(0,229,255,0.3)]'
+                  : 'border-white/10 text-white/50 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5" />
             </button>
           )}
         </div>

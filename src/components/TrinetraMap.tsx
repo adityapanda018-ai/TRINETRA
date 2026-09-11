@@ -81,6 +81,8 @@ interface TrinetraMapProps {
   /** Toggle for MapLibre 3D DEM Terrain Elevation */
   is3dTerrain?: boolean;
   onToggle3dTerrain?: () => void;
+  /** Toggle projection between globe and mercator */
+  onToggleProjection?: () => void;
   /** Active Radar Line-of-Sight Coverage Dome */
   radarDome?: {
     geometry: { type: 'Polygon'; coordinates: [number, number][][] };
@@ -113,7 +115,7 @@ function computeSolarTerminator(): [number, number][] {
 
 const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] };
 
-function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightClick, onViewStateChange, flyToLocation, projection = 'globe', mapStyle = 'dark', sweepData, scanTargets = [], demoMode = false, theme = 'core', drawnPolygons = [], arcgisLayers = [], drawMode = null, onDrawComplete, onDrawProgress, onDrawCancel, drawCommand = null, onMapCenter, route = null, userLocation = null, followUser = false, onFollowInterrupt, navigating = false, aircraftAirports = {}, sentryMode = false, tacticalOptics = 'normal', is3dTerrain = false, onToggle3dTerrain, radarDome = null }: TrinetraMapProps) {
+function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightClick, onViewStateChange, flyToLocation, projection = 'globe', onToggleProjection, mapStyle = 'dark', sweepData, scanTargets = [], demoMode = false, theme = 'core', drawnPolygons = [], arcgisLayers = [], drawMode = null, onDrawComplete, onDrawProgress, onDrawCancel, drawCommand = null, onMapCenter, route = null, userLocation = null, followUser = false, onFollowInterrupt, navigating = false, aircraftAirports = {}, sentryMode = false, tacticalOptics = 'normal', is3dTerrain = false, onToggle3dTerrain, radarDome = null }: TrinetraMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
@@ -3301,6 +3303,8 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
           onInteract={onFollowInterrupt}
           is3dTerrain={is3dTerrain}
           onToggle3dTerrain={onToggle3dTerrain}
+          projection={projection}
+          onToggleProjection={onToggleProjection}
         />
       )}
     </>

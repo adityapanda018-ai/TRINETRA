@@ -3,7 +3,7 @@
  * ║  POLYBOLOS SDK — Core Type System                               ║
  * ║  Standardized Entity Model for Multi-Domain Intelligence        ║
  * ║                                                                 ║
- * ║  Built on OSIRIS by Souleimen Mrad                              ║
+ * ║  Built on TRINETRA by Souleimen Mrad                            ║
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 
@@ -134,8 +134,10 @@ export type LatticeConnectionStatus =
 // ── SDK Client Types ───────────────────────────────────────────────
 
 export interface PolybolosClientConfig {
-  /** Base URL for OSIRIS API endpoints */
-  osirisBaseUrl: string;
+  /** Base URL for TRINETRA API endpoints */
+  trinetraBaseUrl?: string;
+  /** Base URL for TRINETRA API endpoints (legacy alias) */
+  osirisBaseUrl?: string;
   /** Optional Lattice configuration */
   lattice?: LatticeConfig;
   /** Entity update callback */

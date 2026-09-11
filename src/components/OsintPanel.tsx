@@ -142,36 +142,114 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     });
   }, [cveCache]);
 
-    const handleSelfTrack = () => {
+    const handleSelfTrack = useCallback(() => {
       setLoading(true);
       setError('');
-      fetch('/api/geo')
-        .then(r => {
-          if (!r.ok) throw new Error(`Server returned ${r.status}`);
-          return r.json();
-        })
-        .then(geo => {
-          setLoading(false);
-          if (geo.status === 'success' && geo.lat && geo.lon && onScanGeolocate) {
-            onScanGeolocate(geo.query || 'local', {
-              lat: geo.lat,
-              lng: geo.lon,
-              city: geo.city || 'Unknown',
-              country: geo.country || 'Unknown',
-              isp: geo.isp || 'Unknown',
-              org: geo.org || 'Unknown',
-              as: geo.as || 'Unknown',
-              type: 'self_track'
-            });
-          } else {
-            setError("Could not retrieve your IP location.");
-          }
-        })
-        .catch(err => {
-          setLoading(false);
-          setError("Network error: " + err.message);
-        });
-    };
+      setActiveTab('self_track');
+
+      const fallbackToIp = (warningNotice?: string) => {
+        fetch('/api/geo')
+          .then(r => {
+            if (!r.ok) throw new Error(`Server returned ${r.status}`);
+            return r.json();
+          })
+          .then(geo => {
+            setLoading(false);
+            if (geo.status === 'success' && geo.lat && geo.lon) {
+              const trackPayload = {
+                lat: geo.lat,
+                lng: geo.lon,
+                accuracy: 2500,
+                city: (geo.city || 'Detected City').replace(/\s+Corporation$/i, ''),
+                region: geo.regionName || '',
+                country: geo.country || 'Detected Country',
+                isp: geo.isp || 'Unknown ISP',
+                org: geo.org || 'Unknown Org',
+                as: (geo.as || 'Unknown ASN').replace(/^(AS)+/i, 'AS'),
+                query: geo.query || 'Auto-Detected IP',
+                type: 'self_track',
+                source: 'IP Geolocation (Approximate)',
+                warning: warningNotice,
+                timestamp: new Date().toLocaleTimeString(),
+              };
+              setResults(trackPayload);
+              setHistory(prev => [{ tab: 'self_track', query: `IP: ${geo.query || 'Local'}`, time: new Date().toLocaleTimeString() }, ...prev.slice(0, 9)]);
+              if (onScanGeolocate) {
+                onScanGeolocate(geo.query || 'Local Device', trackPayload);
+              }
+            } else {
+              setError(warningNotice || "Could not retrieve your location.");
+            }
+          })
+          .catch(err => {
+            setLoading(false);
+            setError((warningNotice ? `${warningNotice} ` : '') + "Network error: " + err.message);
+          });
+      };
+
+      if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const accuracy = pos.coords.accuracy;
+            const heading = pos.coords.heading;
+            const speed = pos.coords.speed;
+            const altitude = pos.coords.altitude;
+
+            let netInfo: any = {};
+            try {
+              const res = await fetch(`/api/geo?lat=${lat}&lng=${lng}`);
+              if (res.ok) netInfo = await res.json();
+            } catch {
+              // Net info optional
+            }
+
+            const cleanCity = (netInfo.city || '').replace(/\s+Corporation$/i, '');
+            const cleanAsn = (netInfo.as || '').replace(/^(AS)+/i, 'AS');
+
+            const trackPayload = {
+              lat,
+              lng,
+              accuracy: Math.round(accuracy),
+              altitude: altitude != null ? Math.round(altitude) : null,
+              heading: heading != null ? Math.round(heading) : null,
+              speed: speed != null ? Number(speed.toFixed(1)) : null,
+              city: cleanCity || 'Current Location',
+              region: netInfo.regionName || '',
+              country: netInfo.country || '',
+              isp: netInfo.isp || 'Local Network',
+              org: netInfo.org || '',
+              as: cleanAsn,
+              query: netInfo.query || 'GPS Hardware Fix',
+              type: 'self_track',
+              source: 'Device GPS / Wi-Fi Geolocation (High Accuracy)',
+              timestamp: new Date().toLocaleTimeString(),
+            };
+
+            setLoading(false);
+            setResults(trackPayload);
+            setHistory(prev => [{ tab: 'self_track', query: `GPS: ${lat.toFixed(4)}°, ${lng.toFixed(4)}°`, time: new Date().toLocaleTimeString() }, ...prev.slice(0, 9)]);
+
+            if (onScanGeolocate) {
+              onScanGeolocate('MY LOCATION (GPS)', trackPayload);
+            }
+          },
+          (err) => {
+            console.warn('[TRINETRA] Device geolocation failed, falling back to IP:', err.message);
+            const msg = err.code === 1
+              ? 'Browser location permission was denied. Falling back to IP-based location estimation.'
+              : err.code === 2
+              ? 'Position unavailable from device sensors. Falling back to IP-based location estimation.'
+              : 'GPS detection timed out. Falling back to IP-based location estimation.';
+            fallbackToIp(msg);
+          },
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        );
+      } else {
+        fallbackToIp('Browser does not support HTML5 Geolocation. Using IP estimation.');
+      }
+    }, [onScanGeolocate]);
 
   const runLookup = useCallback(async () => {
     if (!query.trim() || loading) return;
@@ -333,7 +411,15 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     finally { setLoading(false); }
   }, [query, activeTab, scanType, loading, sweepCidr]);
 
-  const currentTab = TABS.find(t => t.id === activeTab);
+  const currentTab = TABS.find(t => t.id === activeTab) || (activeTab === 'self_track' ? {
+    id: 'self_track',
+    label: 'SELF TRACK',
+    icon: LocateFixed,
+    placeholder: 'Current Device Location',
+    color: '#00E676',
+    group: 'network' as const,
+    blurb: 'Device GPS / Wi-Fi Geolocation & Network Telemetry',
+  } : undefined);
 
   // ── Shodan-style structured result renderers ──
 
@@ -1196,6 +1282,64 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
 
 
 
+    // ── SELF TRACK ──
+    if (activeTab === 'self_track' || r.type === 'self_track') {
+      const isGps = r.source?.includes('GPS');
+      return (
+        <div className="space-y-3">
+          <SectionHeader title="SELF TELEMETRY & LOCATION" icon={LocateFixed} color="#00E676" />
+
+          {r.warning && (
+            <div className="p-2.5 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-[10px] font-mono text-yellow-400 flex items-start gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+              <div>
+                <div>{r.warning}</div>
+                <div className="text-[9px] text-yellow-400/70 mt-1">Tip: Allow location access in your browser address bar for pin-point GPS accuracy.</div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold border bg-[#00E676]/15 text-[#00E676] border-[#00E676]/40 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#00E676] animate-pulse" />
+              {isGps ? 'GPS SENSOR LOCKED' : 'IP-BASED ESTIMATE'}
+            </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono text-[var(--text-muted)] border border-white/10 bg-white/5">
+              ±{r.accuracy}m ACCURACY
+            </span>
+          </div>
+
+          <ResultRow label="Coordinates" value={`${r.lat.toFixed(6)}°, ${r.lng.toFixed(6)}°`} color="#00E676" />
+          <ResultRow label="Accuracy" value={`±${r.accuracy} meters`} />
+          {r.altitude != null && <ResultRow label="Altitude" value={`${r.altitude} m MSL`} />}
+          {r.heading != null && <ResultRow label="Heading" value={`${r.heading}°`} />}
+          {r.speed != null && <ResultRow label="Speed" value={`${r.speed} m/s`} />}
+          <ResultRow label="Region" value={[r.city?.replace(/\s+Corporation$/i, ''), r.region, r.country].filter(Boolean).join(', ')} />
+          <ResultRow label="Public IP" value={r.query} color="#00E5FF" />
+          <ResultRow label="ISP / Net" value={r.isp} />
+          {r.org && r.org !== r.isp && <ResultRow label="Org" value={r.org} />}
+          {r.as && <ResultRow label="ASN" value={r.as.replace(/^(AS)+/i, 'AS')} />}
+          <ResultRow label="Sensor Mode" value={r.source} />
+
+          <div className="pt-2 flex gap-2">
+            <button
+              onClick={() => onScanGeolocate && onScanGeolocate('MY LOCATION', r)}
+              className="flex-1 py-2 px-3 rounded-lg border border-[#00E676]/40 bg-[#00E676]/15 hover:bg-[#00E676]/25 text-[#00E676] font-mono text-[10px] font-bold tracking-wider flex items-center justify-center gap-1.5 transition-all"
+            >
+              <Crosshair className="w-3.5 h-3.5" /> RE-CENTER MAP
+            </button>
+            <button
+              onClick={handleSelfTrack}
+              disabled={loading}
+              className="py-2 px-3 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white/80 font-mono text-[10px] tracking-wider flex items-center justify-center gap-1.5 transition-all"
+            >
+              <LocateFixed className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> RE-SCAN
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     // Fallback for other tools
     return renderFallback();
   };
@@ -1299,12 +1443,14 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         <button
           onClick={handleSelfTrack}
           disabled={loading}
-          className={`w-full py-2 rounded-lg border flex items-center justify-center gap-2 transition-all ${loading ? 'opacity-60 cursor-wait' : 'hover:bg-[var(--hover-accent)]'}`}
-          style={{ borderColor: 'rgba(0, 230, 118, 0.25)' }}
+          className={`w-full py-2 rounded-lg border flex items-center justify-center gap-2 transition-all ${
+            activeTab === 'self_track' ? 'bg-[#00E676]/15 border-[#00E676]' : loading ? 'opacity-60 cursor-wait' : 'hover:bg-[var(--hover-accent)]'
+          }`}
+          style={{ borderColor: activeTab === 'self_track' ? '#00E676' : 'rgba(0, 230, 118, 0.25)' }}
         >
-          <LocateFixed className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} style={{ color: '#00E676' }} />
+          <LocateFixed className={`w-4 h-4 ${loading ? 'animate-spin' : activeTab === 'self_track' ? 'animate-pulse' : ''}`} style={{ color: '#00E676' }} />
           <span className="font-mono font-bold tracking-[0.1em] text-[11px]" style={{ color: '#00E676' }}>
-            {loading ? 'TRACKING…' : 'SELF TRACK'}
+            {loading ? 'DETECTING…' : activeTab === 'self_track' && results ? 'LOCATION ACTIVE' : 'SELF TRACK'}
           </span>
         </button>
       </div>
@@ -1337,12 +1483,16 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           ))}
           <button onClick={handleSelfTrack}
             disabled={loading}
-            className={`w-full py-4 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all ${loading ? 'opacity-60 cursor-wait' : 'hover:bg-[var(--hover-accent)] hover:shadow-[0_0_20px_rgba(0,230,118,0.15)]'} bg-[#0D0D0C]`}
-            style={{ borderColor: 'rgba(0, 230, 118, 0.2)' }}
+            className={`w-full py-4 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all ${
+              activeTab === 'self_track' ? 'bg-[#00E676]/10 border-[#00E676]/50 shadow-[0_0_20px_rgba(0,230,118,0.2)]' : loading ? 'opacity-60 cursor-wait' : 'hover:bg-[var(--hover-accent)] hover:shadow-[0_0_20px_rgba(0,230,118,0.15)] bg-[#0D0D0C]'
+            }`}
+            style={{ borderColor: activeTab === 'self_track' ? '#00E676' : 'rgba(0, 230, 118, 0.2)' }}
           >
             <div className="flex items-center gap-3">
-              <LocateFixed className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} style={{ color: '#00E676' }} />
-              <span className="font-mono font-bold tracking-[0.1em] text-[10px]" style={{ color: '#00E676' }}>{loading ? 'TRACKING...' : 'SELF TRACK'}</span>
+              <LocateFixed className={`w-5 h-5 ${loading ? 'animate-spin' : activeTab === 'self_track' ? 'animate-pulse' : ''}`} style={{ color: '#00E676' }} />
+              <span className="font-mono font-bold tracking-[0.1em] text-[10px]" style={{ color: '#00E676' }}>
+                {loading ? 'DETECTING...' : activeTab === 'self_track' && results ? 'LOCATION ACTIVE' : 'SELF TRACK'}
+              </span>
             </div>
           </button>
         </div>
@@ -1416,7 +1566,21 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           </div>
         )}
 
-        {!(activeTab === 'crypto' && chainView === 'brief') && (
+        {activeTab === 'self_track' && (
+          <div className="flex gap-2">
+            <button
+              onClick={handleSelfTrack}
+              disabled={loading}
+              className="flex-1 py-2 px-3 rounded-lg font-mono text-[10px] font-bold tracking-wider flex items-center justify-center gap-2 transition-all"
+              style={{ background: 'rgba(0, 230, 118, 0.15)', border: '1px solid rgba(0, 230, 118, 0.4)', color: '#00E676' }}
+            >
+              <LocateFixed className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'DETECTING LOCATION…' : 'UPDATE LOCATION FIX'}
+            </button>
+          </div>
+        )}
+
+        {!(activeTab === 'crypto' && chainView === 'brief') && activeTab !== 'self_track' && (
         <div className="flex gap-1.5">
           <div className="flex-1 relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" />
@@ -1724,7 +1888,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           <div className="flex items-center justify-between px-6 py-3.5 border-b border-[var(--border-secondary)] bg-[#111] flex-shrink-0">
             <div className="flex items-center gap-3 min-w-0">
               <Radar className="w-5 h-5 text-[var(--cyan-primary)] flex-shrink-0" />
-              <span className="hud-text text-[16px] text-[var(--text-primary)]">OSIRIS RECON TOOLKIT</span>
+              <span className="hud-text text-[16px] text-[var(--text-primary)]">TRINETRA RECON TOOLKIT</span>
               <span className="gotham-tag gotham-tag--classified" style={{ fontSize: '9px' }}>{TABS.length} MODULES</span>
               {currentTab && (
                 <>
@@ -1783,7 +1947,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           <button onClick={() => setIsFullScreen(true)} className="p-1.5 -m-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors" title="Full Screen">
              <Maximize2 className="w-3.5 h-3.5" />
           </button>
-          <div className="w-1.5 h-1.5 rounded-full bg-[var(--cyan-primary)] animate-osiris-pulse" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--cyan-primary)] animate-trinetra-pulse" />
           <button onClick={() => setExpanded(!expanded)}>
             {expanded ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-muted)]" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
           </button>

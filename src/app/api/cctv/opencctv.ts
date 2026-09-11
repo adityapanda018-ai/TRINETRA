@@ -3,7 +3,7 @@ import { cachedSource } from '@/lib/sourceCache';
 import type { CctvCamera, CctvStreamType } from './types';
 
 /**
- * OSIRIS — Asian cameras via the OpenCCTV directory.
+ * TRINETRA — Asian cameras via the OpenCCTV directory.
  *
  * Source: https://opencctv.org — an aggregator carrying ~145,000 cameras, of
  * which ~30,000 sit inside the Asian boxes below, most of them republished
@@ -201,7 +201,7 @@ function loader(region: string, bounds: Bounds, cap: number) {
     }
 
     const cams = [...seen.values()];
-    console.log(`[OSIRIS] ${region} cameras — OpenCCTV: ${cams.length} of ${inRegion.length} in region`);
+    console.log(`[TRINETRA] ${region} cameras — OpenCCTV: ${cams.length} of ${inRegion.length} in region`);
     return cams;
   };
 }

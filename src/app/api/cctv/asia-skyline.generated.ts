@@ -1,7 +1,7 @@
 import type { CctvCamera } from './types';
 
 /**
- * OSIRIS — SkylineWebcams public live cameras across Asia (GENERATED).
+ * TRINETRA — SkylineWebcams public live cameras across Asia (GENERATED).
  *
  * Skyline's `liveNNNN.jpg` is a catalog poster, not a guaranteed live frame —
  * only about a third of them actually refresh. Cameras whose poster was
@@ -23,8 +23,8 @@ export const ASIA_SKYLINE_CAMERAS: CctvCamera[] = [
   // ── Hong Kong (1) ──
   { id: 'sky-hong-kong-hong-kong-kwai-tsing-container-terminal-6117', lat: 22.2818333, lng: 114.1582831, name: 'Hong Kong - Kwai Tsing Container Terminal', city: 'Hong Kong', country: 'Hong Kong', external_url: 'https://www.skylinewebcams.com/en/webcam/china/hong-kong/hong-kong/kwai-tsing-container-terminal.html', source: 'SkylineWebcams' },
   // ── India (2) ──
-  { id: 'sky-india-tower-of-peace-mount-abu-4359', lat: 24.592433, lng: 72.7081876, name: 'Tower Of Peace - Mount Abu', city: 'Mount Abu', country: 'India', external_url: 'https://www.skylinewebcams.com/en/webcam/india/rajasthan/mount-abu/tower-of-peace.html', source: 'SkylineWebcams' },
-  { id: 'sky-india-nanded-takht-sachkhand-sri-hazur-5943', lat: 19.0942729, lng: 77.4832628, name: 'Nanded - Takht Sachkhand Sri Hazur', city: 'Nanded', country: 'India', external_url: 'https://www.skylinewebcams.com/en/webcam/india/maharashtra/nanded/takht-sachkhand-sri-hazur.html', source: 'SkylineWebcams' },
+  { id: 'sky-india-tower-of-peace-mount-abu-4359', lat: 24.592433, lng: 72.7081876, name: 'Tower Of Peace - Mount Abu', city: 'Mount Abu', country: 'India', stream_url: 'https://www.youtube.com/embed/HGgxrLJ0syY?autoplay=1&mute=1', stream_type: 'iframe', feed_url: 'https://images.skylinewebcams.com/live/4359.jpg', external_url: 'https://www.skylinewebcams.com/en/webcam/india/rajasthan/mount-abu/tower-of-peace.html', source: 'SkylineWebcams' },
+  { id: 'sky-india-nanded-takht-sachkhand-sri-hazur-5943', lat: 19.0942729, lng: 77.4832628, name: 'Nanded - Takht Sachkhand Sri Hazur', city: 'Nanded', country: 'India', stream_url: 'https://www.youtube.com/embed/aLSfTB-qYNI?autoplay=1&mute=1', stream_type: 'iframe', feed_url: 'https://images.skylinewebcams.com/live/5943.jpg', external_url: 'https://www.skylinewebcams.com/en/webcam/india/maharashtra/nanded/takht-sachkhand-sri-hazur.html', source: 'SkylineWebcams' },
   // ── Indonesia (8) ──
   { id: 'sky-indonesia-volcano-bromo-indonesia-5201', lat: -7.9825939, lng: 112.9075676, name: 'Volcano Bromo - Indonesia', city: 'Ngadas', country: 'Indonesia', external_url: 'https://www.skylinewebcams.com/en/webcam/indonesia/east-java/ngadas/mount-bromo.html', source: 'SkylineWebcams' },
   { id: 'sky-indonesia-semeru-volcano-indonesia-4804', lat: 0.8046961, lng: 124.6467135, name: 'Semeru Volcano - Indonesia', city: 'Putus', country: 'Indonesia', external_url: 'https://www.skylinewebcams.com/en/webcam/indonesia/east-java/putus/semeru-volcano.html', source: 'SkylineWebcams' },

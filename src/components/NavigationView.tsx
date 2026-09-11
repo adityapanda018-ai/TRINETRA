@@ -11,7 +11,7 @@ import {
 } from '@/lib/navigation';
 
 /* ═══════════════════════════════════════════════════════════════
-   OSIRIS — Live Navigation
+   TRINETRA — Live Navigation
    Turn-by-turn guidance driven by the device's own position feed
    ═══════════════════════════════════════════════════════════════ */
 

@@ -5,19 +5,11 @@
   "sources": {
     "carto": {
       "type": "vector",
-      "tiles": [
-        "https://tiles-a.basemaps.cartocdn.com/vectortiles/carto.streets/v1/{z}/{x}/{y}.mvt",
-        "https://tiles-b.basemaps.cartocdn.com/vectortiles/carto.streets/v1/{z}/{x}/{y}.mvt",
-        "https://tiles-c.basemaps.cartocdn.com/vectortiles/carto.streets/v1/{z}/{x}/{y}.mvt",
-        "https://tiles-d.basemaps.cartocdn.com/vectortiles/carto.streets/v1/{z}/{x}/{y}.mvt"
-      ],
-      "minzoom": 0,
-      "maxzoom": 14,
-      "attribution": "© CARTO, © OpenStreetMap contributors"
+      "url": "/cartocdn-tiles/vector/carto.streets/v1/tiles.json"
     }
   },
-  "sprite": "https://tiles.basemaps.cartocdn.com/gl/dark-matter-gl-style/sprite",
-  "glyphs": "https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf",
+  "sprite": "/cartocdn-tiles/gl/dark-matter-gl-style/sprite",
+  "glyphs": "/cartocdn-tiles/fonts/{fontstack}/{range}.pbf",
   "layers": [
     {
       "id": "background",

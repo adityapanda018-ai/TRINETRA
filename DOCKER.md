@@ -1,10 +1,10 @@
-# Self-Hosting OSIRIS with Docker
+# Self-Hosting TRINETRA with Docker
 
-OSIRIS ships as a self-contained Next.js standalone build. This guide covers
+TRINETRA ships as a self-contained Next.js standalone build. This guide covers
 running it with Docker / Docker Compose, deploying it as a [CasaOS](https://casaos.io)
 app, and configuring the optional API keys.
 
-> **TL;DR:** OSIRIS runs fully **without any API keys**. All core feeds
+> **TL;DR:** TRINETRA runs fully **without any API keys**. All core feeds
 > (aviation, satellites, fires, earthquakes, weather, news, CVEs) use public
 > keyless sources. Keys only matter for the optional RECON scanner backend and
 > for raising rate limits on a few feeds.
@@ -14,11 +14,11 @@ app, and configuring the optional API keys.
 ## 1. Docker Compose (recommended)
 
 ```bash
-git clone https://github.com/simplifaisoul/osiris.git
-cd osiris
+git clone https://github.com/simplifaisoul/trinetra.git
+cd trinetra
 
 # optional: configure keys / scanner backend
-cp .env.template .env        # then edit .env
+cp .env.example .env        # then edit .env
 
 docker compose up -d
 ```
@@ -29,14 +29,14 @@ What the compose file does:
 
 - **`build:`** — compose builds the image locally from the `Dockerfile`, so
   you always run the code you just cloned. To run the prebuilt registry image
-  instead, add `image: ghcr.io/simplifaisoul/osiris:latest` to the `osiris`
+  instead, add `image: ghcr.io/simplifaisoul/trinetra:latest` to the `trinetra`
   service and drop the `build:` block.
 - **`env_file: .env` (`required: false`)** — if a `.env` file exists its
-  values are injected into the container; if it's missing, OSIRIS still starts
+  values are injected into the container; if it's missing, TRINETRA still starts
   with the keyless feeds.
-- **`ports: ${OSIRIS_PORT:-3000}:3000`** — the web UI. The container always
-  listens on 3000; the published **host** port is `OSIRIS_PORT` (default
-  `3000`). Set `OSIRIS_PORT` in `.env` to remap it, e.g. `OSIRIS_PORT=3005`
+- **`ports: ${TRINETRA_PORT:-${OSIRIS_PORT:-3000}}:3000`** — the web UI. The container always
+  listens on 3000; the published **host** port is `TRINETRA_PORT` (default
+  `3000`). Set `TRINETRA_PORT` in `.env` to remap it, e.g. `TRINETRA_PORT=3005`
   when 3000 is already in use — no need to edit the compose file.
 - **`restart: unless-stopped`** — survives reboots.
 
@@ -52,13 +52,13 @@ docker compose down             # stop & remove
 
 A prebuilt image for `linux/amd64` and `linux/arm64` is published to the GitHub
 Container Registry on every push to `master` and every `v*.*.*` tag, so you can
-run OSIRIS without building anything:
+run TRINETRA without building anything:
 
 ```bash
-docker pull ghcr.io/simplifaisoul/osiris:latest   # or a pinned tag, e.g. :0.1.0
-docker run -d --name osiris \
+docker pull ghcr.io/simplifaisoul/trinetra:latest   # or a pinned tag, e.g. :0.1.0
+docker run -d --name trinetra \
   -p 3005:3000 --env-file .env --restart unless-stopped \
-  ghcr.io/simplifaisoul/osiris:latest
+  ghcr.io/simplifaisoul/trinetra:latest
 ```
 
 The package is public — no `docker login` is required to pull it.
@@ -66,8 +66,8 @@ The package is public — no `docker login` is required to pull it.
 ### Plain `docker run`
 
 ```bash
-docker build -t osiris:latest .
-docker run -d --name osiris -p 3000:3000 --env-file .env --restart unless-stopped osiris:latest
+docker build -t trinetra:latest .
+docker run -d --name trinetra -p 3000:3000 --env-file .env --restart unless-stopped trinetra:latest
 ```
 
 ### Image details
@@ -88,38 +88,38 @@ reads.
 **Install:**
 
 1. On the CasaOS host, clone the repo somewhere persistent (e.g.
-   `/DATA/AppData/osiris`).
+   `/DATA/AppData/trinetra`).
 2. CasaOS dashboard → **`+`** → **Install a customized app** → paste the
    contents of `docker-compose.yml`.
    *(or simply run `docker compose up -d` from the cloned directory).*
-3. OSIRIS appears on the dashboard with its icon, reachable on host port
-   `3000` (or whatever `OSIRIS_PORT` you set in `.env`).
+3. TRINETRA appears on the dashboard with its icon, reachable on host port
+   `3000` (or whatever `TRINETRA_PORT` you set in `.env`).
 
-The app icon is the gold Eye-of-Horus mark in
+The app icon is the gold mark in
 `public/casaos-icon.png` (512×512 PNG), referenced by the `icon:` URL in the
 metadata.
 
 > CasaOS stores imported compose files under `/var/lib/casaos/apps/`, so a
 > relative `build:` context may not resolve there. If importing the YAML
-> directly, either build/tag `osiris:latest` first
-> (`docker build -t osiris:latest /path/to/osiris`) or replace the `build:`
-> block with `image: ghcr.io/simplifaisoul/osiris:latest`.
+> directly, either build/tag `trinetra:latest` first
+> (`docker build -t trinetra:latest /path/to/trinetra`) or replace the `build:`
+> block with `image: ghcr.io/simplifaisoul/trinetra:latest`.
 
 ---
 
 ## 3. API keys & data sources
 
-Copy `.env.template` to `.env` and fill in only what you need.
+Copy `.env.example` to `.env` and fill in only what you need.
 
 ### What the code actually reads today
 
 | Variable | Purpose | Required for |
 |----------|---------|--------------|
 | `SCANNER_URL` | RECON scanner backend base URL (e.g. `http://scanner:7700`) | RECON toolkit (quick/ssl/headers/rdns/subdomains/tech/whois/geoloc/vuln) |
-| `SCANNER_KEY` | Shared secret; **must equal the backend's `OSIRIS_KEY`** | RECON toolkit |
+| `SCANNER_KEY` | Shared secret; **must equal the backend's `TRINETRA_KEY` (or legacy `OSIRIS_KEY`)** | RECON toolkit |
 
 Without `SCANNER_URL`/`SCANNER_KEY` the RECON endpoints return `503` and the
-rest of OSIRIS works normally. Generate a key with `openssl rand -hex 32`.
+rest of TRINETRA works normally. Generate a key with `openssl rand -hex 32`.
 
 ### Optional keys (reserved / for higher rate limits)
 
@@ -135,14 +135,14 @@ them only if you extend the relevant route or hit rate limits.
 | `AIS_API_KEY` | aisstream.io maritime | Sign up at <https://aisstream.io/>, create a key on the **API Keys** page. Used over `wss://stream.aisstream.io/v0/stream`. |
 
 > Keep `.env` out of version control — it is already in `.gitignore`. Only
-> `.env.template` (no secrets) is committed.
+> `.env.example` (no secrets) is committed.
 
 ### Optional runtime overrides
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `OSIRIS_TELEGRAM_CHANNELS` | Comma-separated list of public Telegram channel usernames (no `@`) to scrape for the **Telegram OSINT** map layer. Overrides the curated default set. | `osintdefender,insiderpaper,aljazeeraenglish,nexta_live,war_monitor` |
-| `OSIRIS_PORT` | Host port the compose file publishes (container itself always listens on 3000). | `3000` |
+| `TRINETRA_TELEGRAM_CHANNELS` | Comma-separated list of public Telegram channel usernames (no `@`) to scrape for the **Telegram OSINT** map layer. Overrides the curated default set (legacy `OSIRIS_TELEGRAM_CHANNELS` also supported). | `osintdefender,insiderpaper,aljazeeraenglish,nexta_live,war_monitor` |
+| `TRINETRA_PORT` | Host port the compose file publishes (container itself always listens on 3000; legacy `OSIRIS_PORT` also supported). | `3000` |
 
 ### Keyless sources (no configuration needed)
 

@@ -2,7 +2,7 @@ import { cachedSource } from '@/lib/sourceCache';
 import { loadIbi511Cameras, type Ibi511Source } from './ibi511';
 
 /**
- * OSIRIS — Georgia CCTV Cameras (GDOT NaviGAtor / 511ga.org)
+ * TRINETRA — Georgia CCTV Cameras (GDOT NaviGAtor / 511ga.org)
  * Source: https://511ga.org — the same IBI 511 stack Louisiana and Nevada run
  * ~4,040 cameras statewide — NO API KEY NEEDED.
  *

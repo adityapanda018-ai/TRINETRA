@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { tacticalAudio } from '@/lib/tactical-audio';
 
 interface CryptoPrice { symbol: string; price: number; change24h?: number; }
 interface Earthquake { id: string; magnitude: number; place: string; time: number; depth: number; }
@@ -75,6 +76,16 @@ export default function GlobalStatusBar() {
   const [crypto, setCrypto] = useState<CryptoPrice[]>([]);
   const [quakes, setQuakes] = useState<Earthquake[]>([]);
   const [hoveredQuake, setHoveredQuake] = useState<Earthquake | null>(null);
+  const [audioMuted, setAudioMuted] = useState(false);
+
+  useEffect(() => {
+    setAudioMuted(tacticalAudio.isMuted());
+    const handleAudio = (e: any) => {
+      if (e.detail) setAudioMuted(e.detail.muted);
+    };
+    window.addEventListener('trinetra:audio_state', handleAudio);
+    return () => window.removeEventListener('trinetra:audio_state', handleAudio);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -123,7 +134,7 @@ export default function GlobalStatusBar() {
             .slice(0, 5);
           setQuakes(majorQuakes);
         }
-      } catch (e) { console.warn('[OSIRIS] Suppressed error:', e instanceof Error ? e.message : e); }
+      } catch (e) { console.warn('[TRINETRA] Suppressed error:', e instanceof Error ? e.message : e); }
     };
     fetchData();
     const iv = setInterval(fetchData, 60000);
@@ -208,6 +219,27 @@ export default function GlobalStatusBar() {
 
         {/* ── RIGHT: Live SOL Price + Links ── */}
         <div className="flex-shrink-0 h-full flex items-center pointer-events-auto border-l border-white/[0.04]">
+          {/* Tactical Audio FX Mute / Unmute */}
+          <button
+            onClick={() => {
+              const next = tacticalAudio.toggleMute();
+              if (!next) tacticalAudio.playUiClick();
+            }}
+            title={audioMuted ? "Tactical Audio: MUTED (Click to Enable)" : "Tactical Audio: ACTIVE (Click to Mute)"}
+            className={`h-full px-2.5 flex items-center gap-1.5 transition-colors border-r border-white/[0.04] text-[9px] font-mono cursor-pointer ${
+              audioMuted ? 'text-white/30 hover:text-white/60' : 'text-[#00E5FF] bg-[#00E5FF]/5 hover:bg-[#00E5FF]/10'
+            }`}
+          >
+            <span className="text-[11px]">{audioMuted ? '🔇' : '🔊'}</span>
+            <span className="hidden sm:inline tracking-wider font-semibold">{audioMuted ? 'SND: OFF' : 'SND: ON'}</span>
+            {!audioMuted && (
+              <span className="flex items-end gap-0.5 ml-0.5 h-2.5">
+                <span className="w-0.5 h-1.5 bg-[#00E5FF] animate-pulse" />
+                <span className="w-0.5 h-2.5 bg-[#00E5FF] animate-pulse delay-75" />
+                <span className="w-0.5 h-1 bg-[#00E5FF] animate-pulse delay-150" />
+              </span>
+            )}
+          </button>
 
           {/* Status indicator */}
           <div className="h-full px-3 flex items-center gap-1.5">

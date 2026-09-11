@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Search, X, MapPin, Navigation, Building2, Globe2, Landmark } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════════
-   OSIRIS — Enhanced Search / Locate Bar
+   TRINETRA — Enhanced Search / Locate Bar
    Street-level geocoding with intelligent zoom levels
    Ctrl+F / Cmd+F keyboard shortcut support
    ═══════════════════════════════════════════════════════════════ */
@@ -95,6 +95,8 @@ export default function SearchBar({ onLocate, alwaysExpanded = false }: SearchBa
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchCache = useRef<Map<string, SearchResult[]>>(new Map());
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Focus input when opened
   useEffect(() => {
@@ -160,18 +162,39 @@ export default function SearchBar({ onLocate, alwaysExpanded = false }: SearchBa
     }
 
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (q.trim().length < 2) { setResults([]); return; }
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+
+    const normalizedQuery = q.trim().toLowerCase();
+    if (normalizedQuery.length < 2) { 
+      setResults([]); 
+      setLoading(false);
+      return; 
+    }
+
+    // Instant hit from in-memory cache
+    if (searchCache.current.has(normalizedQuery)) {
+      setResults(searchCache.current.get(normalizedQuery)!);
+      setLoading(false);
+      return;
+    }
 
     timerRef.current = setTimeout(async () => {
       setLoading(true);
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       try {
         // Use addressdetails=1 for better type detection and limit=8 for more results
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=1&extratags=1`,
-          { headers: { 'Accept-Language': 'en', 'User-Agent': 'OSIRIS-Intelligence-Platform/1.0' } }
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(normalizedQuery)}&format=json&limit=8&addressdetails=1&extratags=1`,
+          { 
+            signal: controller.signal,
+            headers: { 'Accept-Language': 'en', 'User-Agent': 'TRINETRA-Intelligence-Platform/1.0' } 
+          }
         );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        setResults(data.map((r: any) => {
+        const mappedResults: SearchResult[] = data.map((r: any) => {
           const zoom = getZoomForType(r.type, r.class, r.boundingbox);
           return {
             label: r.display_name,
@@ -182,10 +205,24 @@ export default function SearchBar({ onLocate, alwaysExpanded = false }: SearchBa
             category: r.class || 'unknown',
             zoomLevel: zoom,
           };
-        }));
-      } catch { setResults([]); }
-      setLoading(false);
-    }, 300);
+        });
+
+        // Store in cache (capped at 100 entries to prevent memory growth)
+        if (searchCache.current.size > 100) {
+          const firstKey = searchCache.current.keys().next().value;
+          if (firstKey) searchCache.current.delete(firstKey);
+        }
+        searchCache.current.set(normalizedQuery, mappedResults);
+
+        setResults(mappedResults);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          setResults([]);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }, 350);
   }, []);
 
   const handleSelect = (r: SearchResult) => {

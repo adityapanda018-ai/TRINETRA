@@ -2,8 +2,8 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════
-   OSIRIS — Global Intelligence Platform Design System
-   Egyptian Mythology × Dark Ops × Glassmorphism
+   TRINETRA — Global Intelligence Platform Design System
+   Third Eye of Shiva × Dark Ops × Glassmorphism
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
@@ -226,7 +226,8 @@ html:has(.docs-root) body {
   border-radius: 10px;
 }
 
-/* ── Osiris Gold Glow ── */
+/* ── TRINETRA Gold Glow ── */
+.trinetra-glow,
 .osiris-glow {
   box-shadow:
     0 0 20px rgba(var(--gold-rgb), 0.12),
@@ -234,6 +235,7 @@ html:has(.docs-root) body {
     0 4px 30px rgba(0, 0, 0, 0.5);
 }
 
+.trinetra-glow-cyan,
 .osiris-glow-cyan {
   box-shadow:
     0 0 20px rgba(var(--cyan-rgb), 0.1),
@@ -268,14 +270,29 @@ html:has(.docs-root) body {
 /* ═══════════════════════════════════════════════════════════════
    ANIMATIONS
    ═══════════════════════════════════════════════════════════════ */
+@keyframes trinetra-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 @keyframes osiris-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
 
+@keyframes trinetra-scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
 @keyframes osiris-scan {
   0% { transform: translateY(-100%); }
   100% { transform: translateY(100vh); }
+}
+
+@keyframes trinetra-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes osiris-rotate {
@@ -298,7 +315,8 @@ html:has(.docs-root) body {
   50% { opacity: 0.6; }
 }
 
-.animate-osiris-pulse { animation: osiris-pulse 2s ease-in-out infinite; }
+.animate-trinetra-pulse,
+.animate-osiris-pulse { animation: trinetra-pulse 2s ease-in-out infinite; }
 .animate-glow-pulse { animation: glow-pulse 3s ease-in-out infinite; }
 .animate-data-pulse { animation: data-pulse 2s ease-in-out infinite; }
 .animate-threat-flash { animation: threat-flash 1.5s ease-in-out infinite; }
@@ -2489,3 +2507,62 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 4px;
   padding: 1px 5px;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   TACTICAL OPTICS & SENSOR SHADERS
+   ═══════════════════════════════════════════════════════════════ */
+
+.tactical-nvg {
+  filter: sepia(1) hue-rotate(85deg) saturate(6) brightness(0.95) contrast(1.35) !important;
+}
+
+.tactical-flir {
+  filter: invert(0.9) hue-rotate(180deg) saturate(3.5) contrast(1.6) !important;
+}
+
+.tactical-crt {
+  filter: sepia(1) hue-rotate(5deg) saturate(4.5) contrast(1.3) brightness(0.9) !important;
+}
+
+/* Authentic CRT scanlines overlay */
+.tactical-scanlines {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.35) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.04),
+    rgba(0, 255, 0, 0.02),
+    rgba(0, 0, 255, 0.04)
+  );
+  background-size: 100% 4px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Tactical Vignette */
+.tactical-vignette {
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+/* Radar sweep rotation animation */
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-radar-sweep {
+  animation: radar-sweep 4s linear infinite;
+}
+
+/* Trinetra pulsing dot animation */
+@keyframes trinetra-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+
+.animate-trinetra-pulse,
+.animate-osiris-pulse {
+  animation: trinetra-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+

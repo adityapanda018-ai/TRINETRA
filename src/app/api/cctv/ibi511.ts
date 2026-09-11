@@ -2,7 +2,7 @@ import { stealthFetch } from '@/lib/stealthFetch';
 import type { CctvCamera } from './types';
 
 /**
- * OSIRIS — helpers for the IBI 511 traveler-information platform.
+ * TRINETRA — helpers for the IBI 511 traveler-information platform.
  *
  * Several state DOTs run the same vendor stack behind different domains, and
  * they all expose cameras the same way: a DataTables endpoint at
@@ -246,6 +246,6 @@ export async function loadIbi511Cameras(cfg: Ibi511Source): Promise<CctvCamera[]
     throw new Error(`${cfg.source} short read: ${cams.length} of ${first.total}`);
   }
 
-  console.log(`[OSIRIS] ${cfg.source} cameras: ${cams.length} of ${first.total}`);
+  console.log(`[TRINETRA] ${cfg.source} cameras: ${cams.length} of ${first.total}`);
   return cams;
 }

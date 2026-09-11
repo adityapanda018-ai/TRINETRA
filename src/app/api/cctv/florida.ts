@@ -2,7 +2,7 @@ import { cachedSource } from '@/lib/sourceCache';
 import { loadIbi511Cameras, type Ibi511Source } from './ibi511';
 
 /**
- * OSIRIS — Florida CCTV Cameras (FDOT / fl511.com)
+ * TRINETRA — Florida CCTV Cameras (FDOT / fl511.com)
  * Source: https://fl511.com — the same IBI 511 stack Louisiana and Nevada run
  * ~4,950 cameras statewide — NO API KEY NEEDED.
  *

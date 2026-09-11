@@ -93,13 +93,13 @@ async function fetchTHBCameras(): Promise<CctvCamera[]> {
         };
       });
   } catch (e) {
-    console.warn('[OSIRIS] Taiwan THB fetch failed:', e);
+    console.warn('[TRINETRA] Taiwan THB fetch failed:', e);
     return [];
   }
 }
 
 export async function fetchTaiwanCameras(): Promise<CctvCamera[]> {
   const thb = await fetchTHBCameras();
-  console.log(`[OSIRIS] Taiwan cameras — THB: ${thb.length}, YouTube: ${YOUTUBE_CAMERAS.length}`);
+  console.log(`[TRINETRA] Taiwan cameras — THB: ${thb.length}, YouTube: ${YOUTUBE_CAMERAS.length}`);
   return [...YOUTUBE_CAMERAS, ...thb];
 }

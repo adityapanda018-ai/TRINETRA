@@ -6,7 +6,7 @@ import {
 } from './world-skyline.generated';
 
 /**
- * OSIRIS — public live webcams outside Asia.
+ * TRINETRA — public live webcams outside Asia.
  *
  * Fills the regions OSIRIS had no CCTV coverage for at all: Latin America, the
  * Caribbean, Africa, and the European countries with no traffic-authority feed

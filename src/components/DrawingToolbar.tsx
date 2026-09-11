@@ -136,7 +136,7 @@ export default function DrawingToolbar({
   }, [polygons.length]);
 
   const handleCopy = useCallback((polygon: DrawnShape) => {
-    navigator.clipboard.writeText(JSON.stringify(polygon.geojson, null, 2));
+    navigator.clipboard?.writeText?.(JSON.stringify(polygon.geojson, null, 2))?.catch?.(() => {});
     setCopied(polygon.id);
     setTimeout(() => setCopied(null), 2000);
   }, []);

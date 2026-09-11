@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- *  OSIRIS — Username enumeration across social platforms
+ *  TRINETRA — Username enumeration across social platforms
  *
  *  A TypeScript reimplementation of the detection logic from the Sherlock
  *  Project (MIT), driven by its site database:

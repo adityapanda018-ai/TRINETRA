@@ -2,7 +2,7 @@ import { cachedSource } from '@/lib/sourceCache';
 import { loadIbi511Cameras, type Ibi511Source } from './ibi511';
 
 /**
- * OSIRIS — Arizona CCTV Cameras (ADOT / az511.gov)
+ * TRINETRA — Arizona CCTV Cameras (ADOT / az511.gov)
  * Source: https://az511.gov — the same IBI 511 stack Louisiana and Nevada run
  * ~640 cameras statewide — NO API KEY NEEDED.
  *

@@ -1,7 +1,7 @@
 import type { CctvCamera } from './types';
 
 /**
- * OSIRIS — SkylineWebcams public live cameras outside Asia (GENERATED).
+ * TRINETRA — SkylineWebcams public live cameras outside Asia (GENERATED).
  *
  * Covers Latin America, the Caribbean, Africa and the European countries that
  * have no dedicated OSIRIS traffic-authority source. Snapshot frames are routed

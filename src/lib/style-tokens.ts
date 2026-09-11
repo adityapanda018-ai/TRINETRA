@@ -23,8 +23,9 @@ import {
   type MapPalette,
 } from './map-palette';
 
-const STORAGE_KEY = 'osiris:style-studio';
-const STYLE_TAG_ID = 'osiris-style-studio';
+const STORAGE_KEY = 'trinetra:style-studio';
+const LEGACY_STORAGE_KEY = 'osiris:style-studio';
+const STYLE_TAG_ID = 'trinetra-style-studio';
 
 export interface StyleSettings {
   accent: string;
@@ -394,10 +395,14 @@ export function readTheme(): StyleSettings {
  * palette and pushes it in. An event keeps that one-way: the token engine has
  * no idea the map exists.
  */
-export const STYLE_EVENT = 'osiris:style';
+export const STYLE_EVENT = 'trinetra:style';
+export const LEGACY_STYLE_EVENT = 'osiris:style';
 
 function announce() {
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(STYLE_EVENT));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(STYLE_EVENT));
+    window.dispatchEvent(new CustomEvent(LEGACY_STYLE_EVENT));
+  }
 }
 
 /** Push settings onto <body>, or strip every trace when passed null. */
@@ -407,6 +412,7 @@ export function applySettings(s: StyleSettings | null) {
     for (const name of VAR_NAMES) body.style.removeProperty(name);
     body.removeAttribute('data-studio');
     document.getElementById(STYLE_TAG_ID)?.remove();
+    document.getElementById('osiris-style-studio')?.remove();
     announce();
     return;
   }
@@ -431,13 +437,16 @@ export function saveSettings(s: StyleSettings) {
 
 /** Forget the stored customisation. */
 export function clearSettings() {
-  try { localStorage.removeItem(STORAGE_KEY); } catch { /* private mode */ }
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch { /* private mode */ }
 }
 
 /** Reapply saved customisation on load, before the studio is ever opened. */
 export function loadSavedSettings(): StyleSettings | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return null;
     return sanitize(JSON.parse(raw), readTheme());
   } catch {

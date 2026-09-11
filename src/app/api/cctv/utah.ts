@@ -6,7 +6,7 @@ import { buildQuery, parseWkt } from './ibi511';
 export { buildQuery, parseWkt };
 
 /**
- * OSIRIS — Utah CCTV Cameras (UDOT Traffic / udottraffic.utah.gov)
+ * TRINETRA — Utah CCTV Cameras (UDOT Traffic / udottraffic.utah.gov)
  * Source: https://prod-ut.ibi511.com — IBI 511 traveler-information system
  * Data endpoint: /List/GetData/Cameras (DataTables, server-side, 100 rows/page)
  * ~2,000 statewide traffic cameras — NO API KEY NEEDED

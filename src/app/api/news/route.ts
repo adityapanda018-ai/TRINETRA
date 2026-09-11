@@ -2,17 +2,20 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 /**
- * OSIRIS — Military-Grade Intelligence API
+ * TRINETRA — Military-Grade Intelligence API
  * Fetches Telegram OSINT feeds directly, with a failsafe fallback 
  * to traditional intelligence sources if Telegram blocks the IP.
  */
 
-const TELEGRAM_CHANNELS = [
-  'OSINTtechnical',
-  'Faytuks',
-  'Liveuamap',
-  'CyberKnow'
-];
+const envChannels = process.env.TRINETRA_TELEGRAM_CHANNELS || process.env.OSIRIS_TELEGRAM_CHANNELS;
+const TELEGRAM_CHANNELS = envChannels
+  ? envChannels.split(',').map(s => s.trim()).filter(Boolean)
+  : [
+      'OSINTtechnical',
+      'Faytuks',
+      'Liveuamap',
+      'CyberKnow'
+    ];
 
 const FALLBACK_FEEDS = {
   BBC: 'https://feeds.bbci.co.uk/news/world/rss.xml',

@@ -1,9 +1,8 @@
 import type { CustomLayerInterface, CustomRenderMethodInput, Map as MlMap } from 'maplibre-gl';
 import { MercatorCoordinate } from 'maplibre-gl';
-import { createSatelliteProgramCache } from './satellite-programs';
 
 /**
- * OSIRIS — satellites drawn at their real altitude
+ * TRINETRA — satellites drawn at their real altitude
  *
  * Satellites were circle features pinned to the ground, so a 35,786 km GEO
  * bird and a 400 km ISS sat on the same surface as a traffic camera. The map
@@ -256,7 +255,7 @@ export function createSatelliteLayer(id: string): CustomLayerInterface & {
   let gl: WebGL2RenderingContext | null = null;
   let map: MlMap | null = null;
   let program: WebGLProgram | null = null;
-  let activeShader: CustomRenderMethodInput['shaderData'] | null = null;
+  let variant = '';
   let buffer: WebGLBuffer | null = null;
   let quad: WebGLBuffer | null = null;
   let pickProgram: WebGLProgram | null = null;
@@ -297,11 +296,11 @@ export function createSatelliteLayer(id: string): CustomLayerInterface & {
     return pr;
   };
 
-  const programs = createSatelliteProgramCache<WebGLProgram>((kind, prelude, define) => {
-    if (kind === 'pick') return link(prelude, define, PICK_VERT, PICK_FRAG);
-    if (kind === 'orbit') return link(prelude, define, ORBIT_VERT, ORBIT_FRAG);
-    return link(prelude, define, VERT, FRAG);
-  }, pr => gl?.deleteProgram(pr));
+  const buildProgram = (prelude: string, define: string) => {
+    if (!gl) return;
+    if (program) gl.deleteProgram(program);
+    program = link(prelude, define, VERT, FRAG);
+  };
 
   /** Lazily sized colour+depth target for the pick pass. */
   const ensurePickTargets = (w: number, h: number) => {
@@ -390,17 +389,17 @@ export function createSatelliteLayer(id: string): CustomLayerInterface & {
 
     onRemove() {
       if (gl) {
-        programs.clear();
+        if (program) gl.deleteProgram(program);
         if (buffer) gl.deleteBuffer(buffer);
         if (quad) gl.deleteBuffer(quad);
+        if (pickProgram) gl.deleteProgram(pickProgram);
         if (pickTex) gl.deleteTexture(pickTex);
         if (pickDepth) gl.deleteRenderbuffer(pickDepth);
         if (pickFbo) gl.deleteFramebuffer(pickFbo);
+        if (orbitProgram) gl.deleteProgram(orbitProgram);
         for (const o of orbitBuffers) gl.deleteBuffer(o.buf);
       }
       program = null;
-      activeShader = null;
-      lastProjection = null;
       buffer = null;
       quad = null;
       pickProgram = null;
@@ -447,9 +446,7 @@ export function createSatelliteLayer(id: string): CustomLayerInterface & {
      * may be larger on a scaled display, so they are converted first.
      */
     pick(x: number, y: number): number | null {
-      if (!gl || !activeShader || !buffer || !lastProjection || count === 0) return null;
-      try { pickProgram = programs.get(activeShader, 'pick'); }
-      catch (error) { console.warn('[OSIRIS] Satellite picking unavailable:', error); return null; }
+      if (!gl || !pickProgram || !buffer || !lastProjection || count === 0) return null;
       const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
       ensurePickTargets(w, h);
       if (!pickFbo) return null;
@@ -505,19 +502,22 @@ export function createSatelliteLayer(id: string): CustomLayerInterface & {
     },
     render(_context: WebGL2RenderingContext | WebGLRenderingContext, args: CustomRenderMethodInput) {
       if (!gl || !buffer) return;
-      // An inactive satellite layer must not compile three GPU programs on
-      // startup or whenever the map switches between globe and flat views.
-      if (!points.length) { count = 0; lastProjection = null; return; }
       const shader = args?.shaderData;
       if (!shader?.vertexShaderPrelude) return;
 
-      try {
-        program = programs.get(shader, 'marker');
-        orbitProgram = orbitSegments?.length ? programs.get(shader, 'orbit') : null;
-        activeShader = shader;
-      } catch (err) {
-        console.error('[OSIRIS] satellite layer:', err instanceof Error ? err.message : err);
-        return;
+      // Recompile when the projection changes — globe and mercator ship
+      // different preludes, and the old program silently draws nothing.
+      if (!program || variant !== shader.variantName) {
+        try {
+          buildProgram(shader.vertexShaderPrelude, shader.define || '');
+          pickProgram = link(shader.vertexShaderPrelude, shader.define || '', PICK_VERT, PICK_FRAG);
+          orbitProgram = link(shader.vertexShaderPrelude, shader.define || '', ORBIT_VERT, ORBIT_FRAG);
+          orbitDirty = true;
+          variant = shader.variantName || '';
+        } catch (err) {
+          console.error('[TRINETRA] satellite layer:', err instanceof Error ? err.message : err);
+          return;
+        }
       }
       if (!program) return;
 

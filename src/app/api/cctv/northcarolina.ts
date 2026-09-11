@@ -2,7 +2,7 @@ import { cachedSource } from '@/lib/sourceCache';
 import { loadIbi511Cameras, type Ibi511Source } from './ibi511';
 
 /**
- * OSIRIS — North Carolina CCTV Cameras (NCDOT DriveNC / drivenc.gov)
+ * TRINETRA — North Carolina CCTV Cameras (NCDOT DriveNC / drivenc.gov)
  * Source: https://drivenc.gov — the same IBI 511 stack Louisiana and Nevada run
  * ~1,140 cameras statewide — NO API KEY NEEDED.
  *

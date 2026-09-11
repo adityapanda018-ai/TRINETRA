@@ -7,7 +7,7 @@ import { layoutTile, tileHeight, tilesOverlap, type TileGeometry } from '@/lib/m
 import type { Map as MlMap } from 'maplibre-gl';
 
 /**
- * OSIRIS — live CCTV previews on the map
+ * TRINETRA — live CCTV previews on the map
  *
  * Zoom in far enough on a cluster of cameras and the nearest ones stop being
  * dots and start showing what they see: a small live frame pinned above each
@@ -421,12 +421,10 @@ function CctvPreviews({ mapRef, active, onOpen }: {
     recompute();
     map.on('moveend', recompute);
     map.on('zoomend', recompute);
-    map.on('idle', recompute);
     map.on('sourcedata', onSourceData);
     return () => {
       map.off('moveend', recompute);
       map.off('zoomend', recompute);
-      map.off('idle', recompute);
       map.off('sourcedata', onSourceData);
     };
   }, [mapRef, recompute]);

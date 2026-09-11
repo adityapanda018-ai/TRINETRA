@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ExternalLink, RefreshCw, MapPin, Camera, CameraOff, Maximize2, PlayCircle } from 'lucide-react';
+import { X, ExternalLink, RefreshCw, MapPin, Camera, CameraOff, Maximize2, PlayCircle, Satellite } from 'lucide-react';
 import Hls from 'hls.js';
 import { isHostedOffPlatform, liveFeedAtSource, localEmbed, needsResolution, offPlatformView } from '@/lib/camera-feed';
 
@@ -18,7 +18,12 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
   const [error, setError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
+  const [useSatView, setUseSatView] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
+
+  const satOpticalUrl = (camera?.lat && camera?.lng)
+    ? `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${(camera.lng - 0.005).toFixed(4)},${(camera.lat - 0.003).toFixed(4)},${(camera.lng + 0.005).toFixed(4)},${(camera.lat + 0.003).toFixed(4)}&bboxSR=4326&imageSR=4326&size=640,360&f=image`
+    : null;
 
   useEffect(() => {
     const iv = setInterval(() => {
@@ -229,6 +234,15 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
                       <MapPin className="w-3 h-3 text-[var(--text-secondary)] hover:text-[var(--gold-primary)]" />
                     </button>
                   )}
+                  {satOpticalUrl && (
+                    <button 
+                      onClick={() => setUseSatView(!useSatView)} 
+                      className={`p-1.5 rounded-sm border transition-all ${useSatView ? 'bg-[var(--gold-primary)]/20 border-[var(--gold-primary)] text-[var(--gold-primary)]' : 'bg-white/5 border-white/10 text-[var(--text-secondary)] hover:text-[var(--gold-primary)]'}`} 
+                      title={useSatView ? "Switch back to ground feed" : "Switch to Orbital Satellite Recon"}
+                    >
+                      <Satellite className="w-3 h-3" />
+                    </button>
+                  )}
                   <button onClick={() => setFullscreen(!fullscreen)} className="hidden md:block p-1.5 rounded-sm bg-white/5 border border-white/10 hover:bg-[var(--text-primary)]/20 hover:border-[var(--text-primary)] transition-all" title="Toggle fullscreen">
                     <Maximize2 className="w-3 h-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" />
                   </button>
@@ -268,8 +282,6 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
                 <CameraOff className="w-6 h-6 mb-3 opacity-50 text-[var(--text-muted)]" />
                 <p className="text-[11px] font-mono uppercase tracking-widest text-[var(--text-secondary)]">{gone ? 'CAMERA WITHDRAWN' : 'CAMERA OFFLINE'}</p>
                 <p className="text-[9px] font-mono text-[var(--text-muted)] mt-2 max-w-[80%] uppercase">{gone ? 'No longer published at source' : 'The operator has this feed off air'}</p>
-                {/* No ACCESS TERMINAL button: the page it would open is either
-                    showing the same 'offline' banner we just read, or a 404. */}
               </div>
             ) : view === 'external' ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-30 backdrop-blur-sm p-4 text-center">
@@ -285,6 +297,58 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
                 >
                   ACCESS TERMINAL
                 </a>
+              </div>
+            ) : (error || useSatView) && satOpticalUrl ? (
+              <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+                <img
+                  src={satOpticalUrl}
+                  alt={camera?.name || 'Orbital Satellite Recon'}
+                  className={`w-full h-full ${fullscreen ? 'object-contain' : 'object-cover'}`}
+                />
+                {/* Tactical Recon Crosshair & Telemetry Overlay */}
+                <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between p-3 bg-gradient-to-t from-black/85 via-transparent to-black/60">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 bg-black/80 border border-[var(--gold-primary)]/50 px-2 py-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[8px] font-mono text-[var(--gold-primary)] tracking-widest uppercase">
+                        {error ? 'ORBITAL OPTICAL SURVEILLANCE • GROUND FEED PROTECTED' : 'ORBITAL OPTICAL RECON'}
+                      </span>
+                    </div>
+                    <span className="text-[8px] font-mono text-white/70 bg-black/70 px-1.5 py-0.5 border border-white/10">
+                      RES: 0.5M/PX
+                    </span>
+                  </div>
+
+                  {/* Target Crosshair */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                    <div className="w-12 h-12 border border-[var(--gold-primary)]/40 rounded-full flex items-center justify-center">
+                      <div className="w-1.5 h-1.5 bg-[var(--gold-primary)]/90 rounded-full" />
+                    </div>
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-[var(--gold-primary)]/70" />
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-[var(--gold-primary)]/70" />
+                    <div className="absolute top-1/2 -left-2 -translate-y-1/2 h-0.5 w-2 bg-[var(--gold-primary)]/70" />
+                    <div className="absolute top-1/2 -right-2 -translate-y-1/2 h-0.5 w-2 bg-[var(--gold-primary)]/70" />
+                  </div>
+
+                  {/* Bottom Telemetry & External Stream Link */}
+                  <div className="flex items-end justify-between pointer-events-auto">
+                    <div className="text-[8px] font-mono text-white/70 bg-black/85 p-1.5 border border-white/10">
+                      <div>TARGET: {camera.lat.toFixed(4)}°N, {camera.lng.toFixed(4)}°E</div>
+                      <div>MODE: HIGH-RES OPTICAL RECON</div>
+                    </div>
+                    {externalFeedUrl && (
+                      <a
+                        href={externalFeedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[var(--gold-primary)]/20 hover:bg-[var(--gold-primary)]/30 border border-[var(--gold-primary)] text-[9px] font-mono font-bold text-[var(--gold-primary)] tracking-wider transition-all shadow-[0_0_15px_rgba(212,175,55,0.2)]"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        ACCESS LIVE STREAM ↗
+                      </a>
+                    )}
+                  </div>
+                </div>
               </div>
             ) : error ? (
               <div className="absolute inset-0 flex items-center justify-center bg-black/90">
@@ -326,8 +390,9 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
               <iframe
                 src={streamUrl}
                 className="w-full h-full border-0"
-                allow="autoplay; fullscreen"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                 allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
               />
             ) : imageUrl ? (
               <img

@@ -4,9 +4,9 @@ import type { IncomingHttpHeaders } from 'http';
 import type { Readable } from 'stream';
 
 /**
- * OSIRIS — JSON fetch over Node's https client.
+ * TRINETRA — JSON fetch over Node's https client.
  *
- * Some upstreams OSIRIS depends on cannot be reached with the bundled undici
+ * Some upstreams TRINETRA depends on cannot be reached with the bundled undici
  * `fetch` from the Next server runtime — it stalls and throws
  * UND_ERR_CONNECT_TIMEOUT after 10s, while `https.get` to the same URL returns
  * in a few hundred ms. This helper is the shared escape hatch.
@@ -16,7 +16,8 @@ import type { Readable } from 'stream';
  * with 406/429 and ask for contact details in their usage policies.
  */
 
-export const OSIRIS_UA = 'OSIRIS-OSINT/1.0 (+https://github.com/simplifaisoul/osiris)';
+export const TRINETRA_UA = 'TRINETRA-OSINT/1.0 (+https://github.com/simplifaisoul/osiris)';
+export const OSIRIS_UA = TRINETRA_UA;
 
 export interface RequestOptions {
   timeoutMs?: number;

@@ -4,7 +4,7 @@ import { buildQuery, parseWkt } from './ibi511';
 import type { CctvCamera } from './types';
 
 /**
- * OSIRIS — Nevada CCTV Cameras (NDOT / nvroads.com)
+ * TRINETRA — Nevada CCTV Cameras (NDOT / nvroads.com)
  * Source: https://www.nvroads.com — the same IBI 511 stack Utah runs on
  * Data endpoint: /List/GetData/Cameras (DataTables, 100 rows/page)
  * ~600 statewide traffic cameras — NO API KEY NEEDED.
@@ -110,7 +110,7 @@ async function loadNevadaCameras(): Promise<CctvCamera[]> {
   }
 
   const cams = [...seen.values()];
-  console.log(`[OSIRIS] Nevada cameras — NDOT: ${cams.length}`);
+  console.log(`[TRINETRA] Nevada cameras — NDOT: ${cams.length}`);
   return cams;
 }
 

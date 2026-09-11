@@ -262,15 +262,6 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
       attributionControl: false as const,
       maxPitch: 85,
       fadeDuration: 0,
-      projection: { type: projection },
-      transformRequest: (url: string) => {
-        // Route all CARTO CDN requests through the internal Next.js proxy API (prevent recursive proxying)
-        if (url.includes('cartocdn.com') && !url.includes('/api/proxy-tiles')) {
-          const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-          return { url: `${baseUrl}/api/proxy-tiles?url=${encodeURIComponent(url)}` };
-        }
-        return { url };
-      },
     };
 
     // MapLibre asks for a high-performance WebGL2 context and throws outright if it
@@ -289,8 +280,11 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
         map = new maplibregl.Map(
           canvasContextAttributes ? { ...baseOptions, canvasContextAttributes } : baseOptions
         );
+        (window as any).__debugMap = map;
         break;
-      } catch (e) {
+      } catch (e: any) {
+        if (typeof window !== 'undefined') (window as any).__mapConstructorError = String(e) + '\n' + (e?.stack || '');
+        console.error('[TRINETRA CONSTRUCTOR ERROR]', e);
         // A failed constructor leaves its canvas behind; the next attempt needs a clean container.
         container.innerHTML = '';
         if (canvasContextAttributes === attributeFallbacks[attributeFallbacks.length - 1]) throw e;
@@ -331,23 +325,53 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     canvas?.addEventListener('webglcontextlost', onContextLost);
     canvas?.addEventListener('webglcontextrestored', onContextRestored);
 
+    map.on('error', (e: any) => {
+      console.error('[TRINETRA MAP ERROR EVENT]', e?.error?.message || e?.message || e);
+    });
+
     map.on('load', () => {
+      console.log('[TRINETRA] map.on(load) STARTED');
       mapRef.current = map;
+      
+      // Apply projection (globe or mercator)
+      try {
+        (map as any).setProjection({ type: projection });
+      } catch (err) {
+        console.warn('[TRINETRA] Projection set error:', err);
+      }
       
       // Initialize atmospheric sky for globe if active
       if (projection === 'globe') {
         try {
           (map as any).setSky({
-            'sky-color': '#02040a',
-            'sky-horizon-blend': 0.8,
-            'horizon-color': '#00d2ff',
+            'sky-color': '#010307',
+            'sky-horizon-blend': 0.85,
+            'horizon-color': '#00E5FF',
             'horizon-fog-blend': 0.3,
-            'atmosphere-blend': 0.8,
-            'fog-color': '#060d1a',
+            'atmosphere-blend': 0.9,
+            'fog-color': '#040B16',
             'fog-ground-blend': 0.0,
           });
         } catch { /* ignore */ }
       }
+
+      // Enhance Globe & Map visibility with deep oceanic blue & tactical border contrast
+      try {
+        if (map.getLayer('water')) {
+          map.setPaintProperty('water', 'fill-color', '#0B1E36');
+        }
+        if (map.getLayer('background')) {
+          map.setPaintProperty('background', 'background-color', '#070C14');
+        }
+        if (map.getLayer('boundary_country_outline')) {
+          map.setPaintProperty('boundary_country_outline', 'line-color', '#194A75');
+          map.setPaintProperty('boundary_country_outline', 'line-opacity', 0.85);
+        }
+        if (map.getLayer('boundary_country_inner')) {
+          map.setPaintProperty('boundary_country_inner', 'line-color', '#0E2A47');
+          map.setPaintProperty('boundary_country_inner', 'line-opacity', 0.6);
+        }
+      } catch { /* ignore */ }
       
       // Theme colors
       const isGhost = theme === 'ghost';
@@ -856,6 +880,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
       }, paint: { 'text-color': ['match', ['get','type'], 'military','#D32F2F', 'tanker','#E65100', 'cargo','#26C6DA', '#B0BEC5'], 'text-halo-color': '#000', 'text-halo-width': 1 }});
 
 
+      console.log('[TRINETRA] map.on(load) COMPLETED, setting mapReady');
       setMapReady(true);
       // Dev-only handle. The map is otherwise unreachable from the console,
       // which makes interaction bugs guesswork rather than diagnosis.

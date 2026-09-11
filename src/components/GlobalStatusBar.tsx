@@ -105,15 +105,19 @@ export default function GlobalStatusBar({
   const [quakes, setQuakes] = useState<Earthquake[]>([]);
   const [hoveredQuake, setHoveredQuake] = useState<Earthquake | null>(null);
   const [audioMuted, setAudioMuted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [mounted, setMounted] = useState(false);
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
-  // Real-time ticking military DTG clock
+  // Real-time ticking military DTG clock (client-mounted to avoid SSR hydration mismatch)
   useEffect(() => {
+    setMounted(true);
+    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
   const dtgString = useMemo(() => {
+    if (!currentTime) return '--Z --- -- [--:--:--Z]';
     const day = String(currentTime.getUTCDate()).padStart(2, '0');
     const hour = String(currentTime.getUTCHours()).padStart(2, '0');
     const min = String(currentTime.getUTCMinutes()).padStart(2, '0');

@@ -277,6 +277,18 @@ export default function Dashboard() {
   const [mobilePanel, setMobilePanel] = useState<'layers'|'markets'|'intel'|'search'|'recon'|'remote'|null>(null);
   const [mapProjection, setMapProjection] = useState<'globe'|'mercator'>('globe');
   const [mapStyle, setMapStyle] = useState<'dark'|'satellite'>('dark');
+
+  const toggleProjection = useCallback(() => {
+    setMapProjection(prev => {
+      const next = prev === 'globe' ? 'mercator' : 'globe';
+      if (next === 'globe') {
+        setFlyToLocation({ lat: 25, lng: 42, zoom: 2.3, ts: Date.now() });
+        setMapView(v => ({ ...v, zoom: 2.3 }));
+      }
+      return next;
+    });
+    tacticalAudio.playUiClick();
+  }, []);
   const [sweepData, setSweepData] = useState<any>(null);
   const [scanTargets, setScanTargets] = useState<any[]>([]);
   const [drawnPolygons, setDrawnPolygons] = useState<DrawnShape[]>([]);
@@ -383,6 +395,7 @@ export default function Dashboard() {
     // Delay geolocation until map is ready (after splash screen clears)
     const geoTimer = setTimeout(() => {
       // 1. Check if user calibrated their preferred location
+      const bootZoom = mapProjection === 'globe' ? 2.5 : 12;
       try {
         const saved = typeof window !== 'undefined' ? localStorage.getItem('trinetra_custom_location') : null;
         if (saved) {
@@ -394,8 +407,8 @@ export default function Dashboard() {
               accuracy: loc.accuracy || 10,
               heading: null,
             });
-            setFlyToLocation({ lat: loc.lat, lng: loc.lng, zoom: 13, ts: Date.now() });
-            setMapView(v => ({ ...v, zoom: 13 }));
+            setFlyToLocation({ lat: loc.lat, lng: loc.lng, zoom: bootZoom, ts: Date.now() });
+            setMapView(v => ({ ...v, zoom: bootZoom }));
             return;
           }
         }
@@ -413,16 +426,16 @@ export default function Dashboard() {
               accuracy: pos.coords.accuracy,
               heading: pos.coords.heading,
             });
-            setFlyToLocation({ lat, lng, zoom: 13, ts: Date.now() });
-            setMapView(v => ({ ...v, zoom: 13 }));
+            setFlyToLocation({ lat, lng, zoom: bootZoom, ts: Date.now() });
+            setMapView(v => ({ ...v, zoom: bootZoom }));
           },
           () => {
             fetch('/api/geo')
               .then(r => r.json())
               .then(geo => {
                 if (geo.status === 'success' && geo.lat && geo.lon) {
-                  setFlyToLocation({ lat: geo.lat, lng: geo.lon, ts: Date.now() });
-                  setMapView(v => ({ ...v, zoom: 12 }));
+                  setFlyToLocation({ lat: geo.lat, lng: geo.lon, zoom: bootZoom, ts: Date.now() });
+                  setMapView(v => ({ ...v, zoom: bootZoom }));
                 }
               })
               .catch(() => { /* silent — keep default global view */ });
@@ -434,8 +447,8 @@ export default function Dashboard() {
           .then(r => r.json())
           .then(geo => {
             if (geo.status === 'success' && geo.lat && geo.lon) {
-              setFlyToLocation({ lat: geo.lat, lng: geo.lon, ts: Date.now() });
-              setMapView(v => ({ ...v, zoom: 12 }));
+              setFlyToLocation({ lat: geo.lat, lng: geo.lon, zoom: bootZoom, ts: Date.now() });
+              setMapView(v => ({ ...v, zoom: bootZoom }));
             }
           })
           .catch(() => { /* silent — keep default global view */ });
@@ -491,7 +504,7 @@ export default function Dashboard() {
       if (e.key === 'i') setShowIntel(p => !p);
       if (e.key === 's') { setShowDesktopSearch(p => !p); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); }
       if (e.key === 'r') setFlyToLocation({ lat: 20, lng: 0, ts: Date.now() });
-      if (e.key === 'g') setMapProjection(p => p === 'globe' ? 'mercator' : 'globe');
+      if (e.key === 'g') toggleProjection();
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault();
         setShowDesktopSearch(true); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false);
@@ -1192,10 +1205,7 @@ export default function Dashboard() {
           data={data} 
           activeLayers={activeLayers} 
           projection={mapProjection} 
-          onToggleProjection={() => {
-            setMapProjection(prev => prev === 'globe' ? 'mercator' : 'globe');
-            tacticalAudio.playUiClick();
-          }}
+          onToggleProjection={toggleProjection}
           mapStyle={mapStyle === 'satellite' ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' : 'dark'} 
           onEntityClick={handleEntityClick} 
           onMouseCoords={handleMouseCoords} 
@@ -1323,8 +1333,8 @@ export default function Dashboard() {
       >
         {/* Unified Control Strip */}
         <div className="flex items-center gap-[3px] p-[3px] pointer-events-auto rounded-xl border border-[var(--border-primary)] bg-[var(--bg-panel)] backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.55)]">
-          <ViewSegment layoutId="view-projection" active={mapProjection === 'globe'} onClick={() => setMapProjection('globe')} title="3D Globe" icon={Globe} label="3D" />
-          <ViewSegment layoutId="view-projection" active={mapProjection === 'mercator'} onClick={() => setMapProjection('mercator')} title="2D Map" icon={MapPinned} label="2D" />
+          <ViewSegment layoutId="view-projection" active={mapProjection === 'globe'} onClick={() => { if (mapProjection !== 'globe') toggleProjection(); }} title="3D Globe" icon={Globe} label="3D" />
+          <ViewSegment layoutId="view-projection" active={mapProjection === 'mercator'} onClick={() => { if (mapProjection !== 'mercator') toggleProjection(); }} title="2D Map" icon={MapPinned} label="2D" />
           <div className="w-px h-5 mx-1 bg-[var(--border-secondary)]" />
           <ViewSegment layoutId="view-style" active={mapStyle === 'dark'} onClick={() => setMapStyle('dark')} title="Night Mode" icon={Moon} label="MAP" />
           <ViewSegment layoutId="view-style" active={mapStyle === 'satellite'} onClick={() => setMapStyle('satellite')} title="Satellite View" icon={Satellite} label="SAT" />
@@ -2227,10 +2237,7 @@ export default function Dashboard() {
       {/* ── GLOBAL STATUS TICKER (bottom) ── */}
       <GlobalStatusBar
         projection={mapProjection}
-        onToggleProjection={() => {
-          setMapProjection(prev => prev === 'globe' ? 'mercator' : 'globe');
-          tacticalAudio.playUiClick();
-        }}
+        onToggleProjection={toggleProjection}
         data={data}
         onFlyTo={(loc) => setFlyToLocation({ ...loc, ts: Date.now() })}
         mouseCoords={mouseCoordsRef.current}

@@ -4,7 +4,7 @@ import { buildGeometry, closeRing, drawReducer, initialDrawState, measure, type 
 import { circleToRing } from '@/lib/geo';
 
 import { useEffect, useRef, useState, useCallback, memo } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import { createSatelliteLayer, parseColor, type SatPoint } from '@/lib/satellite-layer';
 import { MAP_DEFAULTS, MAP_PALETTE_KEYS, readMapPalette, satColorFor, type MapPalette } from '@/lib/map-palette';
 import { STYLE_EVENT } from '@/lib/style-tokens';
@@ -274,7 +274,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     const attributeFallbacks: maplibregl.MapOptions['canvasContextAttributes'][] = [
       undefined,
       { powerPreference: 'low-power', failIfMajorPerformanceCaveat: false },
-      { contextType: 'webgl', powerPreference: 'low-power', failIfMajorPerformanceCaveat: false },
+      { contextType: 'webgl2', powerPreference: 'low-power', failIfMajorPerformanceCaveat: false },
     ];
 
     let map: maplibregl.Map | undefined;
@@ -843,14 +843,14 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
 
     // Events
     let lastMove = 0;
-    map.on('mousemove', e => {
+    map.on('mousemove', (e: any) => {
       const now = Date.now();
       if (now - lastMove > 100) {
         lastMove = now;
         onMouseCoords?.({ lat: e.lngLat.lat, lng: e.lngLat.lng });
       }
     });
-    map.on('contextmenu', e => { e.preventDefault(); onRightClick?.({ lat: e.lngLat.lat, lng: e.lngLat.lng }); });
+    map.on('contextmenu', (e: any) => { e.preventDefault(); onRightClick?.({ lat: e.lngLat.lat, lng: e.lngLat.lng }); });
     map.on('moveend', () => { const c = map.getCenter(); onViewStateChange?.({ zoom: map.getZoom(), latitude: c.lat }); });
 
     // ── POPUP HELPER ──
@@ -876,7 +876,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
 
     // ── Flights (with FlightAware + ADS-B Exchange links + ROUTE VISUALIZATION) ──
     ['fl-commercial','fl-private','fl-jets','fl-military'].forEach(layer => {
-      map.on('click', layer, e => {
+      map.on('click', layer, (e: any) => {
         if (!e.features?.length) return;
         const p = e.features[0].properties as any;
         const coords = (e.features[0].geometry as any).coordinates;
@@ -979,7 +979,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── CCTV (opens CameraViewer panel) ──
-    map.on('click', 'cctv-dots', e => {
+    map.on('click', 'cctv-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -996,7 +996,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Earthquakes (with USGS link) ──
-    map.on('click', 'eq-circles', e => {
+    map.on('click', 'eq-circles', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1024,7 +1024,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     // shader as the visible one, so the target is always exactly where the
     // marker was drawn — including its altitude. A ground-projected hit test
     // would put the target under the satellite instead of on it.
-    map.on('click', e => {
+    map.on('click', (e: any) => {
       const layer = satLayerRef.current;
       if (!layer) return;
       // Defer to any layer that has its own click handler, so a camera or an
@@ -1092,7 +1092,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     // whole catalogue — measured at 1-2 ms with ~19,000 satellites.
     let hoverQueued = false;
     let lastSatHover = 0;
-    map.on('mousemove', e => {
+    map.on('mousemove', (e: any) => {
       const layer = satLayerRef.current;
       if (!layer || hoverQueued || !satRowsRef.current?.length) return;
       const now = performance.now();
@@ -1111,7 +1111,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Fires (with NASA FIRMS link) ──
-    map.on('click', 'fires-heat', e => {
+    map.on('click', 'fires-heat', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1126,7 +1126,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Malware Threats (Abuse.ch) ──
-    map.on('click', 'malware-dots', e => {
+    map.on('click', 'malware-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1162,7 +1162,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
 
     // ── GDELT 2.0 Events ──
     const QUAD_COLOR: Record<string, string> = { '1': '#00E676', '2': '#00E5FF', '3': '#FF9500', '4': '#FF3D3D' };
-    map.on('click', 'gdelt-events-dots', e => {
+    map.on('click', 'gdelt-events-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1188,7 +1188,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Cloudflare Radar: internet outage ──
-    map.on('click', 'cf-outage-dots', e => {
+    map.on('click', 'cf-outage-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1218,7 +1218,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Cloudflare Radar: attack origin share ──
-    map.on('click', 'cf-attack-dots', e => {
+    map.on('click', 'cf-attack-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1240,7 +1240,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── GDELT Conflicts (with source article) ──
-    map.on('click', 'gdelt-dots', e => {
+    map.on('click', 'gdelt-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1271,7 +1271,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Global Event / Conflict Markers ──
-    map.on('click', 'conflict-icons', e => {
+    map.on('click', 'conflict-icons', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1298,7 +1298,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
       'Naval Intelligence': 'https://www.odni.gov',
     };
     ['sdk-sea','sdk-sea-glow','sdk-air','sdk-air-glow','sdk-intel','sdk-intel-glow'].forEach(layer => {
-      map.on('click', layer, e => {
+      map.on('click', layer, (e: any) => {
         if (!e.features?.length) return;
         const p = e.features[0].properties as any;
         const coords = e.lngLat;
@@ -1323,7 +1323,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ⚡ Live Cyber Attack Arcs (click on flying heads) ⚡
-    map.on('click', 'cyber-heads', e => {
+    map.on('click', 'cyber-heads', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1372,7 +1372,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── SCM Suppliers ──
-    map.on('click', 'scm-dots', e => {
+    map.on('click', 'scm-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1419,7 +1419,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Balloons / Sondes ──
-    map.on('click', 'balloon-dots', e => {
+    map.on('click', 'balloon-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1436,7 +1436,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Radiation ──
-    map.on('click', 'rad-dots', e => {
+    map.on('click', 'rad-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1453,7 +1453,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Maritime Ships ──
-    map.on('click', 'ship-dots', e => {
+    map.on('click', 'ship-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1478,7 +1478,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Weather Events (NASA EONET + NOAA/NWS + GDACS) ──
-    map.on('click', 'weather-dots', e => {
+    map.on('click', 'weather-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1497,7 +1497,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Nuclear Infrastructure ──
-    map.on('click', 'infra-dots', e => {
+    map.on('click', 'infra-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -1517,7 +1517,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Maritime Ports & Naval Bases ──
-    map.on('click', 'maritime-dots', e => {
+    map.on('click', 'maritime-dots', (e: any) => {
       const p = e.features?.[0]?.properties;
       if (!p) return;
       const coords = (e.features![0].geometry as any).coordinates;
@@ -1543,7 +1543,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Maritime Chokepoints ──
-    map.on('click', 'choke-dots', e => {
+    map.on('click', 'choke-dots', (e: any) => {
       const p = e.features?.[0]?.properties;
       if (!p) return;
       const coords = (e.features![0].geometry as any).coordinates;
@@ -1556,7 +1556,7 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     });
 
     // ── Live News (opens feed viewer) ──
-    map.on('click', 'news-dots', e => {
+    map.on('click', 'news-dots', (e: any) => {
       const p = e.features?.[0]?.properties;
       if (!p) return;
       onEntityClick?.({
@@ -3112,11 +3112,58 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
           });
         }
         map.setTerrain({ source: 'terrain-dem', exaggeration: 1.5 });
+
+        // Add 3D volumetric building extrusions
+        if (!map.getLayer('3d-buildings')) {
+          const layers = map.getStyle().layers || [];
+          let labelLayerId: string | undefined;
+          for (let i = 0; i < layers.length; i++) {
+            if (layers[i].type === 'symbol' && (layers[i].layout as any)?.['text-field']) {
+              labelLayerId = layers[i].id;
+              break;
+            }
+          }
+
+          const sources = map.getStyle().sources || {};
+          const vectorSourceId = Object.keys(sources).find(id => (sources[id] as any).type === 'vector');
+
+          if (vectorSourceId) {
+            try {
+              map.addLayer({
+                id: '3d-buildings',
+                source: vectorSourceId,
+                'source-layer': 'building',
+                type: 'fill-extrusion',
+                minzoom: 14,
+                paint: {
+                  'fill-extrusion-color': '#162234',
+                  'fill-extrusion-height': [
+                    'interpolate', ['linear'], ['zoom'],
+                    14, 0,
+                    14.05, ['to-number', ['get', 'render_height'], 20]
+                  ],
+                  'fill-extrusion-base': [
+                    'interpolate', ['linear'], ['zoom'],
+                    14, 0,
+                    14.05, ['to-number', ['get', 'render_min_height'], 0]
+                  ],
+                  'fill-extrusion-opacity': 0.82
+                }
+              }, labelLayerId);
+            } catch {}
+          }
+        } else {
+          map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
+        }
+
         if (map.getPitch() < 25) {
           map.easeTo({ pitch: 62, duration: 800 });
         }
       } else {
         map.setTerrain(null);
+        if (map.getLayer('3d-buildings')) {
+          map.setLayoutProperty('3d-buildings', 'visibility', 'none');
+        }
         if (map.getPitch() > 20) {
           map.easeTo({ pitch: 0, duration: 600 });
         }

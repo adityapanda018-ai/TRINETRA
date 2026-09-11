@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   serverExternalPackages: ['ws'],
-  transpilePackages: ['react-map-gl', 'mapbox-gl', 'maplibre-gl'],
+  transpilePackages: ['react-map-gl', 'mapbox-gl'],
   typescript: {
     ignoreBuildErrors: false,
   },

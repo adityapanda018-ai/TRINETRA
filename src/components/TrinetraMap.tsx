@@ -255,13 +255,17 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     const baseOptions = {
       container,
       style: styleUrl,
-      center: [25.48, 42.70] as [number, number], zoom: 6.5, minZoom: 1.5, maxZoom: 18,
+      center: [25.48, 42.70] as [number, number],
+      zoom: projection === 'globe' ? 2.3 : 3.5,
+      minZoom: 1.2,
+      maxZoom: 18,
       attributionControl: false as const,
       maxPitch: 85,
       fadeDuration: 0,
+      projection: { type: projection },
       transformRequest: (url: string) => {
-        // Route all CARTO CDN requests through the internal Next.js proxy API
-        if (url.includes('cartocdn.com')) {
+        // Route all CARTO CDN requests through the internal Next.js proxy API (prevent recursive proxying)
+        if (url.includes('cartocdn.com') && !url.includes('/api/proxy-tiles')) {
           const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
           return { url: `${baseUrl}/api/proxy-tiles?url=${encodeURIComponent(url)}` };
         }
@@ -329,6 +333,21 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
 
     map.on('load', () => {
       mapRef.current = map;
+      
+      // Initialize atmospheric sky for globe if active
+      if (projection === 'globe') {
+        try {
+          (map as any).setSky({
+            'sky-color': '#02040a',
+            'sky-horizon-blend': 0.8,
+            'horizon-color': '#00d2ff',
+            'horizon-fog-blend': 0.3,
+            'atmosphere-blend': 0.8,
+            'fog-color': '#060d1a',
+            'fog-ground-blend': 0.0,
+          });
+        } catch { /* ignore */ }
+      }
       
       // Theme colors
       const isGhost = theme === 'ghost';
@@ -1580,20 +1599,20 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     };
   }, []);
 
-  // Day/Night
+  // Day/Night (active on 2D mercator; skipped on 3D globe to avoid polar inversion shadows)
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
     const map = mapRef.current;
     const update = () => {
       const src = map.getSource('day-night') as any;
       if (!src) return;
-      if (!activeLayers.day_night) { src.setData(EMPTY_FC); return; }
+      if (!activeLayers.day_night || projection === 'globe') { src.setData(EMPTY_FC); return; }
       src.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Polygon', coordinates: [computeSolarTerminator()] }, properties: {} }] });
     };
     update();
     const iv = setInterval(update, 300000); // 5 min (was 1 min — shadow barely moves)
     return () => clearInterval(iv);
-  }, [mapReady, activeLayers.day_night]);
+  }, [mapReady, activeLayers.day_night, projection]);
 
   // Helper to set GeoJSON
   const setGeo = useCallback((source: string, features: any[]) => {
@@ -2214,7 +2233,15 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     // Switch to globe and fly to the sweep location
     try {
       (map as any).setProjection({ type: 'globe' });
-      map.setSky({ 'sky-color': '#0A0A0F', 'sky-horizon-blend': 0.02, 'horizon-color': '#0A0A0F', 'horizon-fog-blend': 0.02 });
+      map.setSky({
+        'sky-color': '#02040a',
+        'sky-horizon-blend': 0.8,
+        'horizon-color': '#00d2ff',
+        'horizon-fog-blend': 0.3,
+        'atmosphere-blend': 0.8,
+        'fog-color': '#060d1a',
+        'fog-ground-blend': 0.0,
+      });
     } catch { /* projection may not be supported */ }
 
     map.flyTo({ center: centerCoord, zoom: 14, pitch: 50, bearing: -20, duration: 3000, essential: true });
@@ -2294,19 +2321,34 @@ function TrinetraMap({ data, activeLayers, onEntityClick, onMouseCoords, onRight
     try {
       (map as any).setProjection({ type: projection });
       if (projection === 'globe') {
-        map.easeTo({ pitch: 20, duration: 1200 });
+        const currentZoom = map.getZoom();
+        if (currentZoom > 4.5) {
+          map.easeTo({ zoom: 2.3, pitch: 25, duration: 1200 });
+        } else {
+          map.easeTo({ pitch: 25, duration: 1200 });
+        }
         try {
           (map as any).setSky({
-            'sky-color': '#04040A',
-            'sky-horizon-blend': 0.5,
-            'horizon-color': '#0a0a1a',
+            'sky-color': '#02040a',
+            'sky-horizon-blend': 0.8,
+            'horizon-color': '#00d2ff',
             'horizon-fog-blend': 0.3,
-            'fog-color': '#04040A',
-            'fog-ground-blend': 0.9,
+            'atmosphere-blend': 0.8,
+            'fog-color': '#060d1a',
+            'fog-ground-blend': 0.0,
           });
         } catch (e) { console.warn('[TRINETRA] Suppressed error:', e instanceof Error ? e.message : e); }
       } else {
         map.easeTo({ pitch: 0, duration: 800 });
+        try {
+          (map as any).setSky({
+            'sky-color': '#0a0a0f',
+            'sky-horizon-blend': 0.05,
+            'horizon-color': '#0a0a0f',
+            'horizon-fog-blend': 0.05,
+            'fog-ground-blend': 0.0,
+          });
+        } catch (e) { console.warn('[TRINETRA] Suppressed error:', e instanceof Error ? e.message : e); }
       }
     } catch (e) {
       console.warn('Projection switch failed:', e);
